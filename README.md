@@ -1,3 +1,7 @@
+<p align="center">
+  <img width="914" height="344" src="https://raw.githubusercontent.com/mandyedi/raytracing-thesis/master/renderings.png">
+</p>
+
 # Summary
 My interest of computer graphics led me to choose the topic of my diploma project. As a part of computer graphics I wanted to engage in ray tracing.  I was interested in making photorealistic images using this method and also interested in all the problems and challenges that I had to deal with.
 
