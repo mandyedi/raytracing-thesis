@@ -1,3 +1,4 @@
+#include <cmath>
 #include <QDebug>
 #include "rt_object.h"
 #include "3rd_party/tiny_obj_loader.h"
@@ -5,6 +6,7 @@
 RTObject::RTObject( std::string objFileName, RTVector position )
     : Name("no name")
     , Position( position )
+    , Scale( RTVector( 1.0f, 1.0f, 1.0f ) )
     , Color( RTVector( 0.5f, 0.5f, 0.5f ) )
     , Diffuse( 0.5f )
     , Specular( 0.5f )
@@ -14,6 +16,12 @@ RTObject::RTObject( std::string objFileName, RTVector position )
     , Globject(nullptr)
     , MaterialType( RTMaterialType::Diffuse )
     , ObjectType( RTObjectType::Cube )
+    , Vertices( nullptr )
+    , TriangleNormals( nullptr )
+    , VertexNormals( nullptr )
+    , NumberOfVertices( 0 )
+    , VerticesSIMDPack( nullptr )
+    , NumberOfVertexPacks( 0 )
 {
     std::vector<tinyobj::shape_t> shapes;
     std::string err = tinyobj::LoadObj( shapes, objFileName.c_str() );

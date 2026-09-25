@@ -527,7 +527,12 @@ void RTScene::openScene( FILE *file , Ui::MainWindow *ui )
 
 /*static*/ std::string RTScene::getResourceFile( const QString &prefix, const QString &resource )
 {
-    QTemporaryDir temporaryDir;
-    QFile::copy( ":/" + prefix + "/" + resource, temporaryDir.path() + "/" + resource );
-    return QString( temporaryDir.path() + "/" + resource ).toLatin1().data();
+    // Static so the directory outlives the returned path, the callers load the file after this returns
+    static QTemporaryDir temporaryDir;
+    QString path = temporaryDir.path() + "/" + resource;
+    if ( !QFile::exists( path ) )
+    {
+        QFile::copy( ":/" + prefix + "/" + resource, path );
+    }
+    return path.toLatin1().data();
 }

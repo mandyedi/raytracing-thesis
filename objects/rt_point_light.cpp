@@ -1,3 +1,4 @@
+#include <cmath>
 #include <QDebug>
 #include "rt_point_light.h"
 
