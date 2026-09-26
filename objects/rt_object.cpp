@@ -48,7 +48,7 @@ RTObject::RTObject( std::string objFileName, RTVector position )
         NumberOfVertices = mesh.indices.size();
 
         // Create mesh
-        unsigned int reminder = NumberOfVertices % 12;
+        unsigned int reminder = ( 12 - NumberOfVertices % 12 ) % 12;
 
         // Create vertices
         Vertices = new RTVector[NumberOfVertices + reminder];
