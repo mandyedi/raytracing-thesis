@@ -2,10 +2,10 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "qmake",
+            "label": "configure debug",
             "type": "process",
-            "command": "C:/msys64/mingw64/bin/qmake-qt5.exe",
-            "args": [ "-o", "build/Makefile", "raytracer.pro" ],
+            "command": "cmake",
+            "args": [ "-S", ".", "-B", "build/debug", "-G", "MinGW Makefiles", "-DCMAKE_BUILD_TYPE=Debug" ],
             "options": {
                 "cwd": "${workspaceFolder}",
                 "env": { "PATH": "C:\\msys64\\mingw64\\bin;${env:PATH}" }
@@ -15,32 +15,43 @@
         {
             "label": "build debug",
             "type": "process",
-            "command": "C:/msys64/mingw64/bin/mingw32-make.exe",
-            "args": [ "-j8", "-f", "Makefile.Debug" ],
+            "command": "cmake",
+            "args": [ "--build", "build/debug", "-j", "8" ],
             "options": {
-                "cwd": "${workspaceFolder}/build",
+                "cwd": "${workspaceFolder}",
                 "env": { "PATH": "C:\\msys64\\mingw64\\bin;${env:PATH}" }
             },
-            "dependsOn": "qmake",
+            "dependsOn": "configure debug",
             "problemMatcher": {
                 "base": "$gcc",
-                "fileLocation": [ "relative", "${workspaceFolder}/build" ]
+                "fileLocation": "absolute"
             },
             "group": { "kind": "build", "isDefault": true }
         },
         {
-            "label": "build release",
+            "label": "configure release",
             "type": "process",
-            "command": "C:/msys64/mingw64/bin/mingw32-make.exe",
-            "args": [ "-j8", "-f", "Makefile.Release" ],
+            "command": "cmake",
+            "args": [ "-S", ".", "-B", "build/release", "-G", "MinGW Makefiles", "-DCMAKE_BUILD_TYPE=Release" ],
             "options": {
-                "cwd": "${workspaceFolder}/build",
+                "cwd": "${workspaceFolder}",
                 "env": { "PATH": "C:\\msys64\\mingw64\\bin;${env:PATH}" }
             },
-            "dependsOn": "qmake",
+            "problemMatcher": []
+        },
+        {
+            "label": "build release",
+            "type": "process",
+            "command": "cmake",
+            "args": [ "--build", "build/release", "-j", "8" ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": { "PATH": "C:\\msys64\\mingw64\\bin;${env:PATH}" }
+            },
+            "dependsOn": "configure release",
             "problemMatcher": {
                 "base": "$gcc",
-                "fileLocation": [ "relative", "${workspaceFolder}/build" ]
+                "fileLocation": "absolute"
             },
             "group": "build"
         }

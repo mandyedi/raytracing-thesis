@@ -955,7 +955,7 @@
   <customwidget>
    <class>GLWidget</class>
    <extends>QWidget</extends>
-   <header>opengl\gl_widget.h</header>
+   <header>opengl/gl_widget.h</header>
    <container>1</container>
    <slots>
     <signal>objectSelected()</signal>
