@@ -20,7 +20,7 @@ public: // functions
     enum class RTMaterialType { Diffuse = 0, Specular, DiffuseAndSpecular, Reflective, Size };
     enum class RTObjectType { Plane = 0, Sphere, Cube, Pyramid, Cylinder, Cone, Tours, Obj, Size };
 
-    RTVector getNormal( unsigned int triangleIndex, float u, float v );
+    RTVector getNormal( unsigned int triangleIndex );
     void getNormalsForSmooth( unsigned int triangleIndex, RTVector &n0, RTVector &n1, RTVector &n2 );
     int intersect( const RTRay &ray, float &distance, unsigned int &triangleIndex, float &u, float &v, bool useSIMD );
 

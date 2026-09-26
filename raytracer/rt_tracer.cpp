@@ -101,7 +101,7 @@ void RTTracer::castRay( RTRay &_ray, RTVector &_color, const int &_depth )
     if ( object )
     {
         RTVector hitPoint  = _ray.Origin + _ray.Direction * distance;
-        RTVector hitNormal = object->getNormal( triangleIndex, u, v );
+        RTVector hitNormal = object->getNormal( triangleIndex );
 
         RTVector hitNormals[3];
         object->getNormalsForSmooth( triangleIndex, hitNormals[0], hitNormals[1], hitNormals[2] );

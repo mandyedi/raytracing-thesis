@@ -250,7 +250,7 @@ bool RTObject::getSmoothShading()
     return SmoothShading;
 }
 
-RTVector RTObject::getNormal( unsigned int triangleIndex, float u, float v )
+RTVector RTObject::getNormal( unsigned int triangleIndex )
 {
     return TriangleNormals[triangleIndex];
 }
