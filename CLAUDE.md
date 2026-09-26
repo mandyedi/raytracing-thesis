@@ -18,7 +18,7 @@ make            # or nmake / jom with MSVC; or open raytracer.pro in Qt Creator
 - Needs **Qt 5** (modules: core, gui, opengl, widgets). The viewport uses `QGLWidget`, which was removed in Qt 6.
 - The compiler flags `-std=c++11 -msse -msse4.1` are GCC/Clang style (MinGW on Windows). With MSVC they need to be adapted.
 - The build only compiles files listed in `SOURCES`/`HEADERS` in the `.pro`. When you add a file, add it there too. Some files in the repo are **not** built: `cpu_info_window.*` and `raytracer/rt_packed_data.cpp` (an old standalone SSE scratch test that includes `stdafx.h`).
-- The `.obj` meshes and GLSL shaders are embedded through [resources.qrc](resources.qrc) (`:/obj/...`, `:/shaders/...`).
+- The `.obj` meshes and GLSL shaders are embedded through [resources/resources.qrc](resources/resources.qrc) (`:/obj/...`, `:/shaders/...`). The subfolders mirror the resource paths: `resources/obj/sphere.obj` is `:/obj/sphere.obj`.
 
 ## Architecture
 

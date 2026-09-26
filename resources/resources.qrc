@@ -1,15 +1,13 @@
 <RCC>
-    <qresource prefix="/shaders">
-        <file>vertex.glsl</file>
-        <file>fragment.glsl</file>
-    </qresource>
-    <qresource prefix="/obj">
-        <file>cone.obj</file>
-        <file>cylinder.obj</file>
-        <file>torus.obj</file>
-        <file>sphere.obj</file>
-        <file>plane.obj</file>
-        <file>pyramid.obj</file>
-        <file>cube.obj</file>
+    <qresource prefix="/">
+        <file>shaders/vertex.glsl</file>
+        <file>shaders/fragment.glsl</file>
+        <file>obj/cone.obj</file>
+        <file>obj/cylinder.obj</file>
+        <file>obj/torus.obj</file>
+        <file>obj/sphere.obj</file>
+        <file>obj/plane.obj</file>
+        <file>obj/pyramid.obj</file>
+        <file>obj/cube.obj</file>
     </qresource>
 </RCC>

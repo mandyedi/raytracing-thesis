@@ -59,4 +59,4 @@ HEADERS  += gui/mainwindow.h \
 FORMS    += gui/mainwindow.ui
 
 RESOURCES += \
-    resources.qrc
+    resources/resources.qrc
