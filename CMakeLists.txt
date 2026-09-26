@@ -12,7 +12,7 @@ option( RAYTRACER_BUILD_GUI "Build the Qt 5 GUI (skipped when Qt 5 is not found)
 
 find_package( Threads REQUIRED )
 
-# Ray tracing core. It must not depend on Qt.
+# Ray tracing core, shared by the CLI and the GUI. It must not depend on Qt.
 add_library( raytracer_core STATIC
     math/rt_vector.cpp
     math/rt_vector_pack.cpp
@@ -37,6 +37,20 @@ if ( CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" )
     target_compile_options( raytracer_core PUBLIC -msse -msse4.1 )
 endif()
 
+# Command line renderer
+add_executable( raytracer-cli cli/main.cpp )
+target_link_libraries( raytracer-cli PRIVATE raytracer_core )
+if ( MINGW )
+    # Runs without the MinGW runtime DLLs on PATH
+    target_link_options( raytracer-cli PRIVATE -static )
+endif()
+# The CLI reads the meshes from the resources folder next to it
+add_custom_command( TARGET raytracer-cli POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/resources/obj
+            $<TARGET_FILE_DIR:raytracer-cli>/resources/obj
+)
+
 # Qt GUI
 if ( RAYTRACER_BUILD_GUI )
     find_package( Qt5 COMPONENTS Core Gui Widgets OpenGL QUIET )
@@ -59,6 +73,6 @@ if ( RAYTRACER_BUILD_GUI )
         set_target_properties( raytracer PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON )
         target_link_libraries( raytracer PRIVATE raytracer_core Qt5::Widgets Qt5::OpenGL )
     else()
-        message( STATUS "Qt 5 not found, building the core only" )
+        message( STATUS "Qt 5 not found, building the CLI only" )
     endif()
 endif()
