@@ -6,8 +6,8 @@
 #include <QMatrix4x4>
 
 #include "gl_grid.h"
-#include "../rt_camera.h"
-#include "../rt_scene.h"
+#include "../scene/rt_camera.h"
+#include "../scene/rt_scene.h"
 #include "manipulators/manipulator.h"
 
 class GLWidget : public QGLWidget, protected QOpenGLFunctions

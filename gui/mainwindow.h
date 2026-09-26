@@ -5,8 +5,8 @@
 #include <QListWidgetItem>
 #include <QTime>
 
-#include "rt_scene.h"
-#include "rt_camera.h"
+#include "scene/rt_scene.h"
+#include "scene/rt_camera.h"
 #include "raytracer/rt_tracer.h"
 #include "image_viewer.h"
 #include "manipulators/manipulator.h"

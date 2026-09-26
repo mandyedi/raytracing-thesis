@@ -13,8 +13,8 @@ TEMPLATE = app
 QMAKE_CXXFLAGS += -std=c++11 -msse -msse4.1
 
 SOURCES += main.cpp\
-        mainwindow.cpp \
-    image_viewer.cpp \
+        gui/mainwindow.cpp \
+    gui/image_viewer.cpp \
     manipulators/manipulator.cpp \
     opengl/gl_object.cpp \
     math/utils.cpp \
@@ -26,16 +26,16 @@ SOURCES += main.cpp\
     raytracer/rt_ray.cpp \
     raytracer/rt_image_parts.cpp \
     raytracer/rt_tracer.cpp \
-    rt_scene.cpp \
-    rt_camera.cpp \
+    scene/rt_scene.cpp \
+    scene/rt_camera.cpp \
     opengl/gl_grid.cpp \
     opengl/gl_widget.cpp \
     math/rt_vector_pack.cpp \
     raytracer/rt_ray_pack.cpp \
     3rd_party/tiny_obj_loader.cc
 
-HEADERS  += mainwindow.h \
-    image_viewer.h \
+HEADERS  += gui/mainwindow.h \
+    gui/image_viewer.h \
     manipulators/manipulator.h \
     opengl/gl_object.h \
     math/rt_vector.h \
@@ -48,15 +48,15 @@ HEADERS  += mainwindow.h \
     raytracer/rt_ray.h \
     raytracer/rt_image_parts.h \
     raytracer/rt_tracer.h \
-    rt_scene.h \
-    rt_camera.h \
+    scene/rt_scene.h \
+    scene/rt_camera.h \
     opengl/gl_grid.h \
     opengl/gl_widget.h \
     math/rt_vector_pack.h \
     raytracer/rt_ray_pack.h \
     3rd_party/tiny_obj_loader.h
 
-FORMS    += mainwindow.ui
+FORMS    += gui/mainwindow.ui
 
 RESOURCES += \
     resources.qrc

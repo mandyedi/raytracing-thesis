@@ -24,7 +24,7 @@ make            # or nmake / jom with MSVC; or open raytracer.pro in Qt Creator
 
 **Two parallel representations of each object.** `RTObject` ([objects/rt_object.h](objects/rt_object.h)) holds the ray tracing data: triangle vertices, face and vertex normals, and SSE-packed vertices. It owns a `GLObject` ([opengl/gl_object.h](opengl/gl_object.h)) that draws the same mesh in the interactive OpenGL viewport (`GLWidget`). Lights (`RTLight` → `RTPointLight`, `RTDistantLight`) follow the same pattern. Every primitive (sphere, cube, torus, …) is a triangle mesh. `RTScene::getResourceFile` copies it out of the Qt resource into a temp dir, and tinyobjloader loads it (only the first shape is used). There are no analytic primitives.
 
-**Rendering flow** (in [mainwindow.cpp](mainwindow.cpp): `on_renderButton_clicked` = scalar, `on_pushSSEButton_clicked` = SSE; the two are near-duplicates):
+**Rendering flow** (in [gui/mainwindow.cpp](gui/mainwindow.cpp): `on_renderButton_clicked` = scalar, `on_pushSSEButton_clicked` = SSE; the two are near-duplicates):
 1. Allocate an `RTVector**` pixel buffer.
 2. Split the image into tiles in `RTImageParts`, a mutex-guarded work queue.
 3. Create N `RTTracer` QObjects, each `moveToThread` to its own `QThread`. Each thread pops tiles until the queue is empty. The UI thread blocks on `wait()`.

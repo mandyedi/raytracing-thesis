@@ -4,8 +4,8 @@
 #include <QObject>
 #include <QVector3D>
 #include "rt_ray.h"
-#include "../rt_scene.h"
-#include "../rt_camera.h"
+#include "../scene/rt_scene.h"
+#include "../scene/rt_camera.h"
 #include "rt_image_parts.h"
 #include "math/rt_vector.h"
 
