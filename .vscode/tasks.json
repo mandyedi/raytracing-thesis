@@ -3,7 +3,7 @@
     "tasks": [
         {
             "label": "configure debug",
-            "type": "process",
+            "type": "shell",
             "command": "cmake",
             "args": [ "-S", ".", "-B", "build/debug", "-G", "MinGW Makefiles", "-DCMAKE_BUILD_TYPE=Debug" ],
             "options": {
@@ -14,7 +14,7 @@
         },
         {
             "label": "build debug",
-            "type": "process",
+            "type": "shell",
             "command": "cmake",
             "args": [ "--build", "build/debug", "-j", "8" ],
             "options": {
@@ -30,7 +30,7 @@
         },
         {
             "label": "configure release",
-            "type": "process",
+            "type": "shell",
             "command": "cmake",
             "args": [ "-S", ".", "-B", "build/release", "-G", "MinGW Makefiles", "-DCMAKE_BUILD_TYPE=Release" ],
             "options": {
@@ -41,7 +41,7 @@
         },
         {
             "label": "build release",
-            "type": "process",
+            "type": "shell",
             "command": "cmake",
             "args": [ "--build", "build/release", "-j", "8" ],
             "options": {
