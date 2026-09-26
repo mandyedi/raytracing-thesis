@@ -1,12 +1,11 @@
 #ifndef RT_LIGHT_H
 #define RT_LIGHT_H
 
-#include <QString>
-#include <QGLBuffer>
-#include <QTextStream>
+#include <string>
 #include "../raytracer/rt_ray.h"
-#include "../opengl/gl_object.h"
 #include "math/rt_vector.h"
+
+class GLObject;
 
 class RTLight
 {
@@ -31,18 +30,18 @@ public:
     void   movePosition( RTVector movementStep );
     void   setScale( RTVector scale );
 
-    void setName( QString name );
+    void setName( const std::string &name );
 
     virtual void illuminate( const RTVector &hitPoint, RTVector &lightDirection, RTVector &intensity ) const = 0;
 
     RTVector  getPosition();
     RTVector  getScale();
     RTVector  getColor();
-    float     getIntensity();
-    QString   getName();
+    float       getIntensity();
+    std::string getName();
 
 protected:
-    QString  Name;
+    std::string Name;
     RTVector Position;
     RTVector Scale;
     RTVector Color;

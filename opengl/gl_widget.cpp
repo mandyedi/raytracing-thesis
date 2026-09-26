@@ -1,5 +1,13 @@
 #include <QVector3D>
 #include "gl_widget.h"
+#include "gl_object.h"
+#include "objects/rt_object.h"
+#include "objects/rt_light.h"
+
+static QVector3D toQVector3D( const RTVector &v )
+{
+    return QVector3D( v.x(), v.y(), v.z() );
+}
 
 GLWidget::GLWidget( QWidget *parent )
     : QGLWidget( parent )
@@ -42,19 +50,16 @@ void GLWidget::paintGL()
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
     ShaderProgram->bind();
-    ShaderProgram->setUniformValue( "projectionMatrix", Camera->getProjectionMatrix() );
+    updateProjectionMatrix();
+    ShaderProgram->setUniformValue( "projectionMatrix", ProjectionMatrix );
+
+    createMissingGLObjects();
 
     // Draw objects from scene
-    foreach( RTObject *object, Scene->getObjects() )
+    for ( RTObject *object : Scene->getObjects() )
     {
-        if ( object->getGlObject() == nullptr )
-        {
-            qWarning() << object->getName() << " does not have initialized GLObject";
-            continue;
-        }
-
         ModelViewMatrix.setToIdentity();
-        ModelViewMatrix.lookAt( Camera->getEye(), Camera->getAt(), Camera->getUp() );
+        ModelViewMatrix.lookAt( toQVector3D( Camera->getEye() ), toQVector3D( Camera->getAt() ), toQVector3D( Camera->getUp() ) );
         ModelViewMatrix.translate({
                                         object->getPosition().x(),
                                         object->getPosition().y(),
@@ -84,16 +89,10 @@ void GLWidget::paintGL()
     }
 
     // Draw lights from scene
-    foreach( RTLight *light, Scene->getLights() )
+    for ( RTLight *light : Scene->getLights() )
     {
-        if ( light->getGlObject() == nullptr )
-        {
-            qWarning() << light->getName() << " does not have initialized GLObject";
-            continue;
-        }
-
         ModelViewMatrix.setToIdentity();
-        ModelViewMatrix.lookAt( Camera->getEye(), Camera->getAt(), Camera->getUp() );
+        ModelViewMatrix.lookAt( toQVector3D( Camera->getEye() ), toQVector3D( Camera->getAt() ), toQVector3D( Camera->getUp() ) );
         ModelViewMatrix.translate({
                                         light->getPosition().x(),
                                         light->getPosition().y(),
@@ -121,7 +120,7 @@ void GLWidget::paintGL()
     // Draw grid
     {
         ModelViewMatrix.setToIdentity();
-        ModelViewMatrix.lookAt( Camera->getEye(), Camera->getAt(), Camera->getUp() );
+        ModelViewMatrix.lookAt( toQVector3D( Camera->getEye() ), toQVector3D( Camera->getAt() ), toQVector3D( Camera->getUp() ) );
         ShaderProgram->setUniformValue( "modelViewMatrix", ModelViewMatrix );
 
         Grid.getVertexBuffer()->bind();
@@ -140,38 +139,38 @@ void GLWidget::paintGL()
 
 void GLWidget::moveCameraForward()
 {
-    Camera->moveCamera( QVector3D( 0.0f, 0.0f, -MoveStep ) );
+    Camera->moveCamera( RTVector( 0.0f, 0.0f, -MoveStep ) );
     updateGL();
 
 }
 
 void GLWidget::moveCameraBackward()
 {
-    Camera->moveCamera( QVector3D(0.0f, 0.0f, MoveStep ) );
+    Camera->moveCamera( RTVector(0.0f, 0.0f, MoveStep ) );
     updateGL();
 }
 
 void GLWidget::moveCameraRight()
 {
-    Camera->moveCamera( QVector3D( MoveStep, 0.0f, 0.0f ) );
+    Camera->moveCamera( RTVector( MoveStep, 0.0f, 0.0f ) );
     updateGL();
 }
 
 void GLWidget::moveCameraLeft()
 {
-    Camera->moveCamera( QVector3D( -MoveStep, 0.0f, 0.0f ) );
+    Camera->moveCamera( RTVector( -MoveStep, 0.0f, 0.0f ) );
     updateGL();
 }
 
 void GLWidget::moveCameraUp()
 {
-    Camera->moveCamera( QVector3D( 0.0f, MoveStep, 0.0f ) );
+    Camera->moveCamera( RTVector( 0.0f, MoveStep, 0.0f ) );
     updateGL();
 }
 
 void GLWidget::moveCameraDown()
 {
-    Camera->moveCamera( QVector3D( 0.0f, -MoveStep, 0.0f ) );
+    Camera->moveCamera( RTVector( 0.0f, -MoveStep, 0.0f ) );
     updateGL();
 }
 
@@ -208,6 +207,51 @@ void GLWidget::createShaders()
 
 }
 
+void GLWidget::updateProjectionMatrix()
+{
+    ProjectionMatrix.setToIdentity();
+
+    if ( Camera->getCameraType() == RTCameraTypePerspective )
+    {
+        ProjectionMatrix.perspective(
+                    45.0f,
+                    static_cast<qreal>( Camera->getScreenWidth() ) / static_cast<qreal>( Camera->getScreenHeight() ),
+                    0.1f,
+                    20.0f );
+    }
+    else if ( Camera->getCameraType() == RTCameraTypeOrtho )
+    {
+        float aspectRatio = Camera->getAspectRatio();
+        float zoom        = Camera->getZoom();
+        ProjectionMatrix.ortho( -aspectRatio * zoom, aspectRatio * zoom, -zoom, zoom, 0.1, 10 );
+    }
+}
+
+// Scene objects and lights get their vertex buffers here, where the GL context is current
+void GLWidget::createMissingGLObjects()
+{
+    for ( RTObject *object : Scene->getObjects() )
+    {
+        if ( object->getGlObject() == nullptr )
+        {
+            GLObject *glObject = new GLObject;
+            glObject->init( object->getVertices(), object->getNumberOfVertices() );
+            object->setGLObject( glObject );
+        }
+    }
+
+    for ( RTLight *light : Scene->getLights() )
+    {
+        if ( light->getGlObject() == nullptr )
+        {
+            std::string sphereFile = Scene->getMeshFile( "sphere.obj" );
+            GLObject *glObject = new GLObject;
+            glObject->init( sphereFile );
+            light->setGLObject( glObject );
+        }
+    }
+}
+
 void GLWidget::mousePressEvent( QMouseEvent *event )
 {
     setFocus();
@@ -235,7 +279,7 @@ void GLWidget::mousePressEvent( QMouseEvent *event )
                 Scene->setActiveObject( object->getName() );
                 ManipulatorHandler->setActiveObject( object );
                 emit objectSelected();
-                qDebug() << object->getName() << " selected";
+                qDebug() << object->getName().c_str() << " selected";
             }
         }
 
@@ -249,7 +293,7 @@ void GLWidget::mousePressEvent( QMouseEvent *event )
                 Scene->setActiveLight( light->getName() );
                 ManipulatorHandler->setActiveLight( light );
                 emit objectSelected();
-                qDebug() << light->getName() << " selected";
+                qDebug() << light->getName().c_str() << " selected";
             }
         }
 

@@ -13,6 +13,8 @@ public:
     Utils();
     ~Utils();
 
+    static constexpr double Pi = 3.14159265358979323846;
+
     static inline bool IsNull( float d );
 };
 

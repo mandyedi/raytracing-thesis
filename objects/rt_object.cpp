@@ -1,5 +1,6 @@
 #include <cmath>
-#include <QDebug>
+#include <limits>
+#include <emmintrin.h>
 #include "rt_object.h"
 #include "3rd_party/tiny_obj_loader.h"
 
@@ -26,9 +27,19 @@ RTObject::RTObject( std::string objFileName, RTVector position )
     std::vector<tinyobj::shape_t> shapes;
     std::string err = tinyobj::LoadObj( shapes, objFileName.c_str() );
 
+    if ( err.empty() && ( shapes.empty() || shapes[0].mesh.indices.empty() ) )
+    {
+        err = "No triangles in " + objFileName;
+    }
+
     if ( !err.empty() )
     {
-        qDebug() << err.c_str() << "\n";
+        // tinyobjloader ends its messages with a newline
+        while ( !err.empty() && ( err.back() == '\n' || err.back() == '\r' ) )
+        {
+            err.pop_back();
+        }
+        LoadError = err;
     }
     else
     {
@@ -93,7 +104,7 @@ RTObject::RTObject( std::string objFileName, RTVector position )
 
         NumberOfVertexPacks = ( NumberOfVertices + reminder ) / 4;
 
-        VerticesSIMDPack = (RTVectorPack*)_aligned_malloc( NumberOfVertexPacks * sizeof( RTVectorPack ), 16 );
+        VerticesSIMDPack = (RTVectorPack*)_mm_malloc( NumberOfVertexPacks * sizeof( RTVectorPack ), 16 );
 
         unsigned int packIndex = 0;
         for ( unsigned int i = 0; i < NumberOfVertices + reminder; i += 12 )
@@ -127,7 +138,27 @@ RTObject::RTObject( std::string objFileName, RTVector position )
 RTObject::~RTObject()
 {
     delete [] Vertices;
-    _aligned_free( VerticesSIMDPack );
+    _mm_free( VerticesSIMDPack );
+}
+
+bool RTObject::isLoaded()
+{
+    return LoadError.empty();
+}
+
+std::string RTObject::getLoadError()
+{
+    return LoadError;
+}
+
+const RTVector* RTObject::getVertices()
+{
+    return Vertices;
+}
+
+unsigned int RTObject::getNumberOfVertices()
+{
+    return NumberOfVertices;
 }
 
 void RTObject::setGLObject( GLObject *glObject )
@@ -150,7 +181,7 @@ void RTObject::setScale( RTVector scale )
     Scale = scale;
 }
 
-void RTObject::setName( QString name )
+void RTObject::setName( const std::string &name )
 {
     Name = name;
 }
@@ -205,7 +236,7 @@ RTVector RTObject::getScale()
     return Scale;
 }
 
-QString RTObject::getName()
+std::string RTObject::getName()
 {
     return Name;
 }
@@ -288,16 +319,16 @@ int RTObject::intersect( const RTRay &ray, float &distance, unsigned int &triang
 
             if ( intersectTriangleSIMDPacked( scalePack, positionPack, rayPack, pack0, pack1, pack2, packT, mask, packU, packV ) )
             {
-                float tArray[4];
+                alignas( 16 ) float tArray[4];
                 _mm_store_ps( tArray, packT );
 
-                float maskArray[4];
+                alignas( 16 ) float maskArray[4];
                 _mm_store_ps( maskArray, mask );
 
-                float uArray[4];
+                alignas( 16 ) float uArray[4];
                 _mm_store_ps( uArray, packU );
 
-                float vArray[4];
+                alignas( 16 ) float vArray[4];
                 _mm_store_ps( vArray, packV );
 
                 for ( int j = 0; j < 4; j++ )

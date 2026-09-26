@@ -15,19 +15,19 @@ ImageViewer::ImageViewer( QWidget *parent )
     setCentralWidget( m_ImageLabel );
 }
 
-void ImageViewer::create( RTVector **buffer, int imageWidth, int imageHeight )
+void ImageViewer::create( const RTImage &image )
 {
+    const int imageWidth  = image.getWidth();
+    const int imageHeight = image.getHeight();
+    const std::vector<unsigned char> rgb = image.toRGB8();
+
     m_Image = new QImage( imageWidth, imageHeight, QImage::Format_RGB32 );
-    int count = 0;
     for ( int i = 0; i < imageHeight; ++i )
     {
         for ( int j = 0; j < imageWidth; ++j )
         {
-            int r = (uchar)( std::min( 1.0f, buffer[i][j].x() ) * 255 );
-            int g = (uchar)( std::min( 1.0f, buffer[i][j].y() ) * 255 );
-            int b = (uchar)( std::min( 1.0f, buffer[i][j].z() ) * 255 );
-            m_Image->setPixel( j, i, qRgb( r, g, b ) );
-            count++;
+            const unsigned char *pixel = &rgb[( i * imageWidth + j ) * 3];
+            m_Image->setPixel( j, i, qRgb( pixel[0], pixel[1], pixel[2] ) );
         }
     }
 

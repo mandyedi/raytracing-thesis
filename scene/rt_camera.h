@@ -1,8 +1,8 @@
 #ifndef RT_CAMERA_H
 #define RT_CAMERA_H
 
-#include <QVector3D>
-#include <QMatrix4x4>
+#include <cmath>
+#include "math/rt_vector.h"
 #include "raytracer/rt_ray.h"
 
 enum RTCameraType
@@ -24,13 +24,12 @@ class RTCamera
 public:
     RTCamera();
 
-    void moveCamera( const QVector3D &direction );
+    void moveCamera( const RTVector &direction );
     void rotateCamera( const float &h, const float &v );
 
     void setScreenSize( const int &width, const int &height );
-    void setRayOrigin( QVector3D &origin );
 
-    void setCamera( QVector3D eye, QVector3D at, RTCameraType cameraType, RTCameraView cameraView )
+    void setCamera( RTVector eye, RTVector at, RTCameraType cameraType, RTCameraView cameraView )
     {
         Eye = eye;
         At  = at;
@@ -38,36 +37,23 @@ public:
         CameraView = cameraView;
     }
 
-    QVector3D getEye();
-    QVector3D getAt();
-    QVector3D getUp();
+    RTVector getEye();
+    RTVector getAt();
+    RTVector getUp();
 
     int   getScreenHeight();
     int   getScreenWidth();
+    float getAspectRatio();
+    float getZoom();
+
+    inline RTCameraType getCameraType()
+    {
+        return CameraType;
+    }
 
     inline RTCameraView getCameraView()
     {
         return CameraView;
-    }
-
-    inline QMatrix4x4& getProjectionMatrix()
-    {
-        ProjectionMatrix.setToIdentity();
-
-        if ( CameraType == RTCameraTypePerspective )
-        {
-            ProjectionMatrix.perspective(
-                        45.0f,
-                        static_cast<qreal>(ScreenWidth) / static_cast<qreal>(ScreenHeight),
-                        0.1f,
-                        20.0f);
-        }
-        else if ( CameraType == RTCameraTypeOrtho )
-        {
-            ProjectionMatrix.ortho( -AspectRatio * Zoom, AspectRatio * Zoom, -Zoom, Zoom, 0.1, 10 );
-        }
-
-        return ProjectionMatrix;
     }
 
     void setRayDirection( const float row, const float col, RTRay &ray )
@@ -77,9 +63,9 @@ public:
             float xx = ( 2 * ( col + 0.5 ) / ScreenWidth - 1 ) * FOV * AspectRatio;
             float yy = ( 1 - 2 * ( row + 0.5 ) / ScreenHeight ) * FOV;
 
-            QVector3D forward = At-Eye;
-            forward.normalize();
-            QVector3D right = QVector3D::crossProduct( forward, Up );
+            RTVector forward = At - Eye;
+            normalize( forward );
+            RTVector right = RTVector::CrossProduct( forward, Up );
 
             ray.Direction.setX( right.x() * xx + Up.x() * yy + forward.x() );
             ray.Direction.setY( right.y() * xx + Up.y() * yy + forward.y() );
@@ -95,7 +81,7 @@ public:
             float xx = ( Zoom * AspectRatio * 2 * col / ScreenWidth ) - Zoom * AspectRatio;
             float yy = Zoom - ( Zoom * 2 * row / ScreenHeight );
 
-            QVector3D direction = At - Eye;
+            RTVector direction = At - Eye;
             ray.Direction.setX( direction.x() );
             ray.Direction.setY( direction.y() );
             ray.Direction.setZ( direction.z() );
@@ -123,10 +109,28 @@ public:
     }
 
 private:
-    QVector3D  Eye;
-    QVector3D  At;
-    QVector3D  Up;
-    QMatrix4x4 ProjectionMatrix;
+    // Same math as QVector3D::normalize(), which the camera used before it became Qt-free:
+    // the length is computed in double precision, so the rays stay exactly the same.
+    static inline void normalize( RTVector &v )
+    {
+        double length = double( v.x() ) * double( v.x() ) +
+                        double( v.y() ) * double( v.y() ) +
+                        double( v.z() ) * double( v.z() );
+        if ( std::fabs( length - 1.0f ) <= 0.000000000001 || std::fabs( length ) <= 0.000000000001 )
+        {
+            return;
+        }
+
+        length = std::sqrt( length );
+
+        v.setX( float( double( v.x() ) / length ) );
+        v.setY( float( double( v.y() ) / length ) );
+        v.setZ( float( double( v.z() ) / length ) );
+    }
+
+    RTVector Eye;
+    RTVector At;
+    RTVector Up;
 
     float AngleH;
     float AngleV;

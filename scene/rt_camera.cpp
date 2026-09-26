@@ -1,22 +1,26 @@
-#include <QtMath>
+#include <cmath>
 #include "rt_camera.h"
+#include "math/utils.h"
 
+// Defaults to the GUI's start camera, so a scene file without a camera line still renders
 RTCamera::RTCamera()
+    : Eye( -0.8f, 1.6f, 6.0f )
+    , At( 0.0f, 0.0f, 0.0f )
+    , Up( 0.0f, 1.0f, 0.0f )
+    , AngleH( 3.14f )
+    , AngleV( 0.0f )
+    , FOV( static_cast<float>( tan( 45.0 * 0.5 * Utils::Pi / 180.0 ) ) )
+    , Zoom( 4 )
+    , CameraType( RTCameraTypePerspective )
+    , CameraView( RTCameraViewNone )
 {
-    Up  = QVector3D( 0.0, 1.0, 0.0 );
-    FOV = static_cast<float>( tan( 45.0 * 0.5 * M_PI / 180.0 ) );
-    AngleH = 3.14f;
-    AngleV = 0.0f;
-
-    Zoom = 4;
+    setScreenSize( 800, 600 );
 }
 
-void RTCamera::moveCamera( const QVector3D &direction )
+void RTCamera::moveCamera( const RTVector &direction )
 {
     Eye += direction;
     At  += direction;
-
-    qDebug() << "Camera Eye: " << Eye;
 }
 
 void RTCamera::rotateCamera( const float &h, const float &v )
@@ -25,20 +29,20 @@ void RTCamera::rotateCamera( const float &h, const float &v )
     AngleV += v;
 
     // Kamera nezopont iranya
-    QVector3D direction(
+    RTVector direction(
                 cosf( AngleV ) * sinf( AngleH ),
                 sinf( AngleV ),
                 cosf( AngleV ) * cosf( AngleH )
     );
-    direction.normalize();
+    normalize( direction );
     At = Eye + direction;
 
-    QVector3D right(
+    RTVector right(
                 sinf( AngleH - 3.14f / 2.0f ),
                 0.0f,
                 cosf( AngleH - 3.14f / 2.0f )
     );
-    Up = QVector3D::crossProduct( right, direction );
+    Up = RTVector::CrossProduct( right, direction );
 }
 
 void RTCamera::setScreenSize( const int &width, const int &height )
@@ -48,25 +52,17 @@ void RTCamera::setScreenSize( const int &width, const int &height )
     AspectRatio  = static_cast<float>(width)/static_cast<float>(height);
 }
 
-void RTCamera::setRayOrigin( QVector3D &origin )
-{
-    QMatrix4x4 mat;
-    mat.setToIdentity();
-    mat.translate( Eye );
-    origin = mat * origin;
-}
-
-QVector3D RTCamera::getEye()
+RTVector RTCamera::getEye()
 {
     return Eye;
 }
 
-QVector3D RTCamera::getAt()
+RTVector RTCamera::getAt()
 {
     return At;
 }
 
-QVector3D RTCamera::getUp()
+RTVector RTCamera::getUp()
 {
     return Up;
 }
@@ -79,4 +75,14 @@ int RTCamera::getScreenHeight()
 int RTCamera::getScreenWidth()
 {
     return ScreenWidth;
+}
+
+float RTCamera::getAspectRatio()
+{
+    return AspectRatio;
+}
+
+float RTCamera::getZoom()
+{
+    return Zoom;
 }

@@ -19,7 +19,23 @@ void GLObject::init( std::string &objFileName )
     qDebug() << "GLObj::Init()";
 
     createVertices( objFileName );
+    createVertexBuffer();
+}
 
+void GLObject::init( const RTVector *vertices, unsigned int numberOfVertices )
+{
+    NumberOfVertices = static_cast<int>( numberOfVertices );
+    Vertices = new QVector3D[NumberOfVertices];
+    for ( int i = 0; i < NumberOfVertices; i++ )
+    {
+        Vertices[i] = QVector3D( vertices[i].x(), vertices[i].y(), vertices[i].z() );
+    }
+
+    createVertexBuffer();
+}
+
+void GLObject::createVertexBuffer()
+{
     VertexBuffer.create();
     VertexBuffer.bind();
     VertexBuffer.setUsagePattern( QGLBuffer::StaticDraw );

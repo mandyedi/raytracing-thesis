@@ -34,7 +34,7 @@ void RTLight::setScale( RTVector scale )
     Scale = scale;
 }
 
-void RTLight::setName( QString name )
+void RTLight::setName( const std::string &name )
 {
     Name = name;
 }
@@ -59,7 +59,7 @@ float RTLight::getIntensity()
     return Intensity;
 }
 
-QString RTLight::getName()
+std::string RTLight::getName()
 {
     return  Name;
 }

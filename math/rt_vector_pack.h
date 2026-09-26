@@ -2,7 +2,6 @@
 #define RT_VECTOR_PACK_H
 
 #include <xmmintrin.h>
-#include <QDebug>
 #include "rt_vector.h"
 
 class RTVectorPack
@@ -18,13 +17,6 @@ public:
     }
 
     ~RTVectorPack();
-
-    void printPack()
-    {
-        qDebug() << "  " << get0( PackX ) << "  " << get1( PackX ) << "  " << get2( PackX ) << "  " << get3( PackX );
-        qDebug() << "  " << get0( PackY ) << "  " << get1( PackY ) << "  " << get2( PackY ) << "  " << get3( PackY );
-        qDebug() << "  " << get0( PackZ ) << "  " << get1( PackZ ) << "  " << get2( PackZ ) << "  " << get3( PackZ );
-    }
 
     float get0( __m128 &pack ) const
     {

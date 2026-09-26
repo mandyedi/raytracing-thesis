@@ -1,15 +1,14 @@
 #ifndef RT_OBJECT_H
 #define RT_OBJECT_H
 
-#include <QString>
-#include <QGLBuffer>
-#include <QTextStream>
+#include <string>
 #include <xmmintrin.h>
-#include "opengl/gl_object.h"
 #include "raytracer/rt_ray.h"
 #include "math/rt_vector.h"
 #include "raytracer/rt_ray_pack.h"
 #include "math/rt_vector_pack.h"
+
+class GLObject;
 
 class RTObject
 {
@@ -24,6 +23,14 @@ public: // functions
     void getNormalsForSmooth( unsigned int triangleIndex, RTVector &n0, RTVector &n1, RTVector &n2 );
     int intersect( const RTRay &ray, float &distance, unsigned int &triangleIndex, float &u, float &v, bool useSIMD );
 
+    // False if the .obj file could not be loaded; getLoadError() tells why
+    bool        isLoaded();
+    std::string getLoadError();
+
+    // Triangle list (3 vertices per triangle) in object space
+    const RTVector* getVertices();
+    unsigned int    getNumberOfVertices();
+
     inline GLObject* getGlObject()
     {
         return Globject;
@@ -35,7 +42,7 @@ public: // functions
     void   movePosition( RTVector movementStep );
     void   setScale( RTVector scale );
 
-    void setName( QString name );
+    void setName( const std::string &name );
     void setMaterialType( RTMaterialType type );
     void setObjectType( RTObjectType type );
     void setColor( RTVector color );
@@ -47,7 +54,7 @@ public: // functions
 
     RTVector getPosition();
     RTVector getScale();
-    QString getName();
+    std::string getName();
     RTMaterialType getMaterialType();
     RTObjectType getObjectType();
     RTVector getColor();
@@ -58,7 +65,8 @@ public: // functions
     bool getSmoothShading();
 
 private:
-    QString    Name;
+    std::string Name;
+    std::string LoadError;
 
     RTVector  Position;
     RTVector  Scale;

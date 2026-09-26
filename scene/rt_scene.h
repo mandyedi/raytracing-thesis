@@ -1,13 +1,14 @@
 #ifndef RT_SCENE_H
 #define RT_SCENE_H
 
+#include <cstddef>
+#include <iosfwd>
+#include <string>
+#include <vector>
+
 class RTObject;
 class RTLight;
 class RTCamera;
-namespace Ui
-{
-    class MainWindow;
-};
 
 class RTScene
 {
@@ -16,54 +17,67 @@ public:
     ~RTScene();
 
     // Object
-    void addObject(RTObject *object);
-    void setActiveObject(QString name);
+    void addObject( RTObject *object );
+    void setActiveObject( const std::string &name );
     void noActiveObject();
 
-    size_t           getNumberOfObjects();
-    RTObject*        getObject(const int &i);
-    RTObject*        getActiveObject();
-    QList<RTObject*> getObjects();
-    void             removeActiveObject();
+    size_t                        getNumberOfObjects();
+    RTObject*                     getObject( const int &i );
+    RTObject*                     getActiveObject();
+    const std::vector<RTObject*>& getObjects();
+    void                          removeActiveObject();
 
-    QString addObj( std::string &objFileName );
-    QString addSphere();
-    QString addPlane();
-    QString addCube();
-    QString addPyramid();
-    QString addCylinder();
-    QString addCone();
-    QString addTorus();
+    std::string addObj( const std::string &objFileName );
+    std::string addSphere();
+    std::string addPlane();
+    std::string addCube();
+    std::string addPyramid();
+    std::string addCylinder();
+    std::string addCone();
+    std::string addTorus();
 
     // Light
-    void setActiveLight( QString name );
+    void setActiveLight( const std::string &name );
     void noActiveLight();
-    QString addPointLight();
-    QString addDistantLight();
+    std::string addPointLight();
+    std::string addDistantLight();
 
-    size_t        getNumberOfLights();
-    RTLight*        getLight( const int i );
-    RTLight*        getActiveLight();
-    QList<RTLight*> getLights();
-    void          removeActiveLight();
+    size_t                       getNumberOfLights();
+    RTLight*                     getLight( const int i );
+    RTLight*                     getActiveLight();
+    const std::vector<RTLight*>& getLights();
+    void                         removeActiveLight();
 
     // Common
     void setCamera( RTCamera *camera );
     void removeAll();
-    void saveScene();
-    void openScene( FILE *file, Ui::MainWindow *ui );
+
+    // Folder with the meshes of the primitives (sphere.obj, cube.obj, ...)
+    void        setMeshDirectory( const std::string &directory );
+    std::string getMeshFile( const std::string &fileName );
+
+    bool saveScene( const std::string &fileName );
+
+    // Adds the camera, objects and lights of a scene file. On failure, error tells the file and line.
+    bool openScene( const std::string &fileName, std::string &error );
 
 private:
-    RTCamera         *Camera;
-    QList<RTObject*>  Objects;
-    RTObject         *ActiveObject;
-    int               ActiveObjectIndex;
-    QList<RTLight*>   Lights;
-    RTLight          *ActiveLight;
-    int               ActiveLightIndex;
-    unsigned int      ObjectNameCount;
+    RTCamera               *Camera;
+    std::vector<RTObject*>  Objects;
+    RTObject               *ActiveObject;
+    int                     ActiveObjectIndex;
+    std::vector<RTLight*>   Lights;
+    RTLight                *ActiveLight;
+    int                     ActiveLightIndex;
+    unsigned int            ObjectNameCount;
+    std::string             MeshDirectory;
 
-    static std::string getResourceFile( const QString &prefix, const QString &resource );
+    std::string addMesh( RTObject *mesh, const std::string &name );
+
+    // Read one line of a scene file; return an error message, or an empty string on success
+    std::string readCamera( std::istream &in );
+    std::string readObject( std::istream &in );
+    std::string readLight( std::istream &in );
 };
 
 #endif // RT_SCENE_H

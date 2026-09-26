@@ -1,5 +1,5 @@
 #include <cmath>
-#include <QDebug>
+#include <utility>
 #include "rt_point_light.h"
 
 RTPointLight::RTPointLight( RTVector position, RTVector color, float intensity )

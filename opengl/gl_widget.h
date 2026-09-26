@@ -45,6 +45,8 @@ protected:
 
 private:
     void createShaders();
+    void updateProjectionMatrix();
+    void createMissingGLObjects();
 
     QGLShaderProgram *ShaderProgram;
     QMatrix4x4        ProjectionMatrix;

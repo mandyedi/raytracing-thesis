@@ -3,11 +3,10 @@
 
 #include <QMainWindow>
 #include <QListWidgetItem>
-#include <QTime>
+#include <QTemporaryDir>
 
 #include "scene/rt_scene.h"
 #include "scene/rt_camera.h"
-#include "raytracer/rt_tracer.h"
 #include "image_viewer.h"
 #include "manipulators/manipulator.h"
 
@@ -51,8 +50,6 @@ private slots:
     void on_actionSave_Scene_triggered();
 
     void on_actionOpen_Scene_triggered();
-
-    void refreshLabelTime();
 
     void selectObjectInList();
 
@@ -113,15 +110,17 @@ private slots:
     void on_distLightDirZDoubleSpinBox_valueChanged(double arg1);
 
 private:
+    void renderImage( bool useSIMD );
+
     Ui::MainWindow *ui;
 
+    QTemporaryDir MeshDirectory;
     RTScene     Scene;
     RTCamera    CameraRenderer;
     RTCamera    CameraTop;
     RTCamera    CameraFront;
     RTCamera    CameraRight;
     Manipulator ManipulatorHandler;
-    QTime       Timer;
 
     int    ImageWidth;
     int    ImageHeight;

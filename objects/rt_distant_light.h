@@ -21,6 +21,7 @@ public:
     void setDirectionX( float x );
     void setDirectionY( float y );
     void setDirectionZ( float z );
+    RTVector getDirection();
 
 private:
     RTVector Direction;

@@ -1,8 +1,8 @@
 #ifndef RT_IMAGE_PARTS_H
 #define RT_IMAGE_PARTS_H
 
-#include <QList>
-#include <QMutex>
+#include <mutex>
+#include <vector>
 
 struct PART {
     unsigned int startRow;
@@ -18,12 +18,13 @@ public:     // functions
     ~RTImageParts();
 
     void addPart( unsigned int startRow, unsigned int startCol, unsigned int endRow, unsigned int endCol );
-    PART getPart();
-    bool isEmpty();
+
+    // Takes the next part; returns false when there are none left
+    bool getPart( PART &part );
 
 private:    // variables
-    QList<PART> List;
-    QMutex      Mutex;
+    std::vector<PART> List;
+    std::mutex        Mutex;
 };
 
 #endif // RT_IMAGE_PARTS_H

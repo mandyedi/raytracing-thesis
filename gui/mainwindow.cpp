@@ -1,12 +1,13 @@
+#include <QDateTime>
 #include <QDebug>
+#include <QDir>
+#include <QFile>
 #include <QImage>
-#include <QThread>
-#include <fstream>
-#include <stdio.h>
+#include <QMessageBox>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "raytracer/rt_image_parts.h"
+#include "raytracer/rt_renderer.h"
 #include "objects/rt_distant_light.h"
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -17,17 +18,24 @@ MainWindow::MainWindow(QWidget *parent) :
 #ifdef SSE_ENABLED
     qDebug() << "SSE enabled";
 #endif
-    CameraRenderer.setCamera( { -0.8f, 1.6f, 6.0f }, { 0.0f, 0.0f, 0.0f }, RTCameraTypePerspective, RTCameraViewNone );
+    // The core loads meshes from files, so copy the embedded ones into a folder that lives as long as the window
+    for ( const QString &mesh : QDir( ":/obj" ).entryList( QDir::Files ) )
+    {
+        QFile::copy( ":/obj/" + mesh, MeshDirectory.filePath( mesh ) );
+    }
+    Scene.setMeshDirectory( QFile::encodeName( MeshDirectory.path() ).toStdString() );
+
+    CameraRenderer.setCamera( RTVector( -0.8f, 1.6f, 6.0f ), RTVector( 0.0f, 0.0f, 0.0f ), RTCameraTypePerspective, RTCameraViewNone );
     ui->glWidget->init(&Scene, &CameraRenderer, &ManipulatorHandler);
     Scene.setCamera( &CameraRenderer );
 
-    CameraTop.setCamera( { 0.0f, 3.0f, 0.00001f }, { 0.0f, 0.0f, 0.0f }, RTCameraTypeOrtho, RTCameraViewTop );
+    CameraTop.setCamera( RTVector( 0.0f, 3.0f, 0.00001f ), RTVector( 0.0f, 0.0f, 0.0f ), RTCameraTypeOrtho, RTCameraViewTop );
     CameraTop.setScreenSize( 800, 600 );
 
-    CameraFront.setCamera( { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, 0.0f }, RTCameraTypeOrtho, RTCameraViewFront );
+    CameraFront.setCamera( RTVector( 0.0f, 0.0f, 1.0f ), RTVector( 0.0f, 0.0f, 0.0f ), RTCameraTypeOrtho, RTCameraViewFront );
     CameraFront.setScreenSize( 800, 600 );
 
-    CameraRight.setCamera( { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, RTCameraTypeOrtho, RTCameraViewRight );
+    CameraRight.setCamera( RTVector( 1.0f, 0.0f, 0.0f ), RTVector( 0.0f, 0.0f, 0.0f ), RTCameraTypeOrtho, RTCameraViewRight );
     CameraRight.setScreenSize( 800, 600 );
 
     ImageWidth  = 800;
@@ -65,7 +73,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::on_objectListWidget_itemClicked( QListWidgetItem *item )
 {
-    Scene.setActiveObject( item->text() );
+    Scene.setActiveObject( item->text().toStdString() );
     ManipulatorHandler.setActiveObject( Scene.getActiveObject() );
     updateProperties();
     updateDependentProperties();
@@ -129,139 +137,33 @@ void MainWindow::on_setColorButton_clicked()
 
 void MainWindow::on_renderButton_clicked()
 {
-    // Store pixels in 2d array
-    RTVector **buffer = new RTVector*[ImageHeight];
-    for ( int i = 0; i < ImageHeight; i++ )
-    {
-        buffer[i] = new RTVector[ImageWidth];
-    }
-
-    qDebug() << "DEBUG: Render with screen width: " << CameraRenderer.getScreenWidth() << " height: " << CameraRenderer.getScreenHeight();
-    qDebug() << "DEBUG: Render with image  width: " << ImageWidth << " height: " << ImageHeight;
-
-    // Generate screen parts for multithreading rendering
-    RTImageParts parts;
-
-    int h = ui->imagePartsHComboBox->currentText().toInt();
-    int v = ui->imagePartsVComboBox->currentText().toInt();
-    int partWidth  = ImageWidth / h;
-    int partHeight = ImageHeight / v;
-
-    for ( int row = 0; row < ImageHeight; row += partHeight )
-    {
-        for ( int col = 0; col < ImageWidth; col += partWidth )
-        {
-            parts.addPart( row, col, row + partHeight, col + partWidth );
-        }
-    }
-
-    // Init threads
-    int n = ui->spinBoxNumberOfThreads->value();
-    QThread   *threads = new QThread[n];
-    RTTracer  *tracers = new RTTracer[n];
-
-    for ( int i = 0; i < n; i++ )
-    {
-        connect( &threads[i], SIGNAL( started() ), &tracers[i], SLOT( render() ) );
-        connect( &tracers[i], SIGNAL( finished() ), &threads[i], SLOT( quit() ), Qt::DirectConnection );
-        connect( &tracers[i], SIGNAL( updateTimer() ), this, SLOT( refreshLabelTime() ) );
-        tracers[i].init( &Scene, &CameraRenderer, buffer, &parts, false );
-        tracers[i].setMaxTraceDepth( ui->maxTraceDepthSpinBox->value() );
-        tracers[i].moveToThread( &threads[i] );
-    }
-
-    // Start rendering
-    Timer.start();
-    for(int i=0; i<n; i++)
-    {
-        threads[i].start();
-    }
-    for(int i=0; i<n; i++)
-    {
-        threads[i].wait();
-    }
-
-    ImageViewerWindow = new ImageViewer;
-    ImageViewerWindow->create( buffer, ImageWidth, ImageHeight );
-    ImageViewerWindow->show();
-    ImageViewerWindow->savePNG();
-
-    // Release buffer
-    for( int i = 0; i < ImageHeight; i++ )
-    {
-        delete[] buffer[i];
-    }
-    delete[] buffer;
+    renderImage( false );
 }
 
 void MainWindow::on_pushSSEButton_clicked()
 {
-    // Store pixels in 2d array
-    RTVector **buffer = new RTVector*[ImageHeight];
-    for(int i=0; i<ImageHeight; i++)
-    {
-        buffer[i] = new RTVector[ImageWidth];
-    }
-
-    qDebug() << "DEBUG: Render with screen width: " << CameraRenderer.getScreenWidth() << " height: " << CameraRenderer.getScreenHeight();
-    qDebug() << "DEBUG: Render with image  width: " << ImageWidth << " height: " << ImageHeight;
-
-    // Generate screen parts for multithreading rendering
-    RTImageParts parts;
-
-    int partWidth = ImageWidth/4;
-    int partHeight = ImageHeight/4;
-    for(int row=0; row<ImageHeight; row+=partHeight)
-    {
-        for(int col=0; col<ImageWidth; col+=partWidth)
-        {
-            parts.addPart( row, col, row+partHeight, col + partWidth );
-        }
-    }
-
-    // Init threads
-    int n = ui->spinBoxNumberOfThreads->value();
-    QThread *threads = new QThread[n];
-    RTTracer  *tracers = new RTTracer[n];
-
-    for(int i=0; i<n; i++)
-    {
-        connect(&threads[i], SIGNAL(started()), &tracers[i], SLOT(render()));
-        connect(&tracers[i], SIGNAL(finished()), &threads[i], SLOT(quit()), Qt::DirectConnection);
-        connect(&tracers[i], SIGNAL(updateTimer()), this, SLOT(refreshLabelTime()));
-        tracers[i].init( &Scene, &CameraRenderer, buffer, &parts, true );
-        tracers[i].setMaxTraceDepth( ui->maxTraceDepthSpinBox->value() );
-        tracers[i].moveToThread(&threads[i]);
-    }
-
-    // Start rendering
-    Timer.start();
-    for(int i=0; i<n; i++)
-    {
-        threads[i].start();
-    }
-    for(int i=0; i<n; i++)
-    {
-        threads[i].wait();
-    }
-
-    ImageViewerWindow = new ImageViewer;
-    ImageViewerWindow->create( buffer, ImageWidth, ImageHeight );
-    ImageViewerWindow->show();
-    ImageViewerWindow->savePNG();
-
-    // Release buffer
-    for(int i=0; i<ImageHeight; i++)
-    {
-        delete[] buffer[i];
-    }
-    delete[] buffer;
+    renderImage( true );
 }
 
-void MainWindow::refreshLabelTime()
+void MainWindow::renderImage( bool useSIMD )
 {
-    float et = static_cast<float>( Timer.elapsed() ) / 1000.0f;
-    ui->labelTime->setText( QString( "Rendering time: %1 s" ).arg( et ) );
+    RTRenderSettings settings;
+    settings.Width           = ImageWidth;
+    settings.Height          = ImageHeight;
+    settings.NumberOfThreads = ui->spinBoxNumberOfThreads->value();
+    settings.MaxTraceDepth   = ui->maxTraceDepthSpinBox->value();
+    settings.UseSIMD         = useSIMD;
+    settings.TileWidth       = ImageWidth / ui->imagePartsHComboBox->currentText().toInt();
+    settings.TileHeight      = ImageHeight / ui->imagePartsVComboBox->currentText().toInt();
+
+    RTRenderer renderer( settings );
+    RTImage image = renderer.render( &Scene, CameraRenderer );
+    ui->labelTime->setText( QString( "Rendering time: %1 s" ).arg( renderer.getRenderTime() ) );
+
+    ImageViewerWindow = new ImageViewer;
+    ImageViewerWindow->create( image );
+    ImageViewerWindow->show();
+    ImageViewerWindow->savePNG();
 }
 
 void MainWindow::updateProperties()
@@ -276,7 +178,7 @@ void MainWindow::updateProperties()
     }
     else if ( o != nullptr )
     {
-        ui->propertiesGroupBox->setTitle( o->getName() + " properties" );
+        ui->propertiesGroupBox->setTitle( QString::fromStdString( o->getName() ) + " properties" );
         ui->SmoothShadingCheckBox->setChecked( o->getSmoothShading() );
         ui->propertiesGroupBox->setEnabled( true );
 
@@ -314,7 +216,7 @@ void MainWindow::updateProperties()
     }
     else if ( l != nullptr )
     {
-        ui->propertiesGroupBox->setTitle( l->getName() + " properties" );
+        ui->propertiesGroupBox->setTitle( QString::fromStdString( l->getName() ) + " properties" );
 
         if ( l->getLightType() == RTLight::RTLightType::Point )
         {
@@ -439,7 +341,12 @@ void MainWindow::updateDependentProperties()
 
 void MainWindow::on_actionSave_Scene_triggered()
 {
-    Scene.saveScene();
+    QDateTime dateTime = QDateTime::currentDateTime();
+    QString fileName = QDir::currentPath() + "/scene_" + dateTime.toString( "yyyyMMdd_hhmmss" ) + ".sc";
+    if ( !Scene.saveScene( QFile::encodeName( fileName ).toStdString() ) )
+    {
+        QMessageBox::warning( this, "Save Scene", "Cannot write " + fileName );
+    }
 }
 
 void MainWindow::on_actionOpen_Scene_triggered()
@@ -447,18 +354,24 @@ void MainWindow::on_actionOpen_Scene_triggered()
     QString fileName = QFileDialog::getOpenFileName( this, "Open Scene File", QDir::currentPath(), QString( "Scene (*.sc)" ) );
     if ( !fileName.isEmpty() )
     {
-        QByteArray  byteArray    = fileName.toUtf8();
-        const char *filaPathChar = byteArray.constData();
-        FILE       *file         = fopen( filaPathChar, "r" );
+        on_actionClear_Scene_triggered();
 
-        if ( !file )
+        std::string error;
+        if ( !Scene.openScene( QFile::encodeName( fileName ).toStdString(), error ) )
         {
+            on_actionClear_Scene_triggered();
+            QMessageBox::warning( this, "Open Scene File", QString::fromLocal8Bit( error.c_str() ) );
             return;
         }
 
-        on_actionClear_Scene_triggered();
-        Scene.openScene( file, ui );
-        fclose(file);
+        for ( RTObject *object : Scene.getObjects() )
+        {
+            ui->objectListWidget->addItem( QString::fromStdString( object->getName() ) );
+        }
+        for ( RTLight *light : Scene.getLights() )
+        {
+            ui->objectListWidget->addItem( QString::fromStdString( light->getName() ) );
+        }
         ui->glWidget->updateGL();
     }
 }
@@ -469,12 +382,12 @@ void MainWindow::selectObjectInList()
     for ( int row = 0; row < ui->objectListWidget->count(); row++ )
     {
         item = ui->objectListWidget->item( row );
-        if ( Scene.getActiveObject() && item->text().compare( Scene.getActiveObject()->getName() ) == 0 )
+        if ( Scene.getActiveObject() && item->text() == QString::fromStdString( Scene.getActiveObject()->getName() ) )
         {
             ui->objectListWidget->setCurrentItem(item);
             return;
         }
-        else if ( Scene.getActiveLight() && item->text().compare( Scene.getActiveLight()->getName() ) == 0 )
+        else if ( Scene.getActiveLight() && item->text() == QString::fromStdString( Scene.getActiveLight()->getName() ) )
         {
             ui->objectListWidget->setCurrentItem( item );
             return;
@@ -515,37 +428,37 @@ void MainWindow::on_RightViewButton_clicked()
 
 void MainWindow::on_addPlaneButton_clicked()
 {
-    ui->objectListWidget->addItem( Scene.addPlane() );
+    ui->objectListWidget->addItem( QString::fromStdString( Scene.addPlane() ) );
     ui->glWidget->updateGL();
 }
 
 void MainWindow::on_addSphereButton_clicked()
 {
-    ui->objectListWidget->addItem( Scene.addSphere() );
+    ui->objectListWidget->addItem( QString::fromStdString( Scene.addSphere() ) );
     ui->glWidget->updateGL();
 }
 
 void MainWindow::on_addCubeButton_clicked()
 {
-    ui->objectListWidget->addItem( Scene.addCube() );
+    ui->objectListWidget->addItem( QString::fromStdString( Scene.addCube() ) );
     ui->glWidget->updateGL();
 }
 
 void MainWindow::on_addPyramidButton_clicked()
 {
-    ui->objectListWidget->addItem( Scene.addPyramid() );
+    ui->objectListWidget->addItem( QString::fromStdString( Scene.addPyramid() ) );
     ui->glWidget->updateGL();
 }
 
 void MainWindow::on_addPointLightButton_clicked()
 {
-    ui->objectListWidget->addItem( Scene.addPointLight() );
+    ui->objectListWidget->addItem( QString::fromStdString( Scene.addPointLight() ) );
     ui->glWidget->updateGL();
 }
 
 void MainWindow::on_addDistantLightButton_clicked()
 {
-    ui->objectListWidget->addItem( Scene.addDistantLight() );
+    ui->objectListWidget->addItem( QString::fromStdString( Scene.addDistantLight() ) );
     ui->glWidget->updateGL();
 }
 
@@ -554,29 +467,28 @@ void MainWindow::on_addObjButton_clicked()
     QString fileName = QFileDialog::getOpenFileName( this, "Open Model File", QDir::currentPath(), QString( "Model file (*.obj)" ) );
     if ( !fileName.isEmpty() )
     {
-        QByteArray byteArray = fileName.toUtf8();
-        std::string fileNameString = byteArray.constData();
+        std::string fileNameString = QFile::encodeName( fileName ).toStdString();
 
-        ui->objectListWidget->addItem( Scene.addObj( fileNameString ) );
+        ui->objectListWidget->addItem( QString::fromStdString( Scene.addObj( fileNameString ) ) );
         ui->glWidget->updateGL();
     }
 }
 
 void MainWindow::on_addCylinderButton_clicked()
 {
-    ui->objectListWidget->addItem( Scene.addCylinder() );
+    ui->objectListWidget->addItem( QString::fromStdString( Scene.addCylinder() ) );
     ui->glWidget->updateGL();
 }
 
 void MainWindow::on_addConeButton_clicked()
 {
-    ui->objectListWidget->addItem( Scene.addCone() );
+    ui->objectListWidget->addItem( QString::fromStdString( Scene.addCone() ) );
     ui->glWidget->updateGL();
 }
 
 void MainWindow::on_addTorusButton_clicked()
 {
-    ui->objectListWidget->addItem( Scene.addTorus() );
+    ui->objectListWidget->addItem( QString::fromStdString( Scene.addTorus() ) );
     ui->glWidget->updateGL();
 }
 

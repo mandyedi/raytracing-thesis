@@ -1,7 +1,10 @@
 #ifndef GL_OBJECT_H
 #define GL_OBJECT_H
 
+#include <string>
 #include <QGLBuffer>
+#include <QVector3D>
+#include "math/rt_vector.h"
 
 class GLObject
 {
@@ -11,6 +14,7 @@ public:
     void release();
 
     void init( std::string &objFileName );
+    void init( const RTVector *vertices, unsigned int numberOfVertices );
 
     GLenum getDrawMode();
 
@@ -25,6 +29,7 @@ private:
     int         NumberOfVertices;
 
     void createVertices( std::string &objFileName );
+    void createVertexBuffer();
 };
 
 #endif // GL_OBJECT_H

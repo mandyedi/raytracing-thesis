@@ -1,6 +1,7 @@
-#include <iostream>
-#include <QDebug>
-#include <QtMath>
+#include <algorithm>
+#include <climits>
+#include <cmath>
+#include <limits>
 
 #include "rt_tracer.h"
 #include "../objects/rt_object.h"
@@ -9,16 +10,15 @@
 
 using namespace  std;
 
-RTTracer::RTTracer( QObject *parent )
-: QObject(parent)
+RTTracer::RTTracer()
 {
 }
 
-void RTTracer::init( RTScene *scene, RTCamera *camera, RTVector **pixels, RTImageParts *imageParts, bool useSIMD )
+void RTTracer::init( RTScene *scene, RTCamera *camera, RTImage *image, RTImageParts *imageParts, bool useSIMD )
 {
     Scene         = scene;
     Camera        = camera;
-    Pixels        = pixels;
+    Image         = image;
     ImageParts    = imageParts;
     MaxTraceDepth = 1;
     UseSIMD       = useSIMD;
@@ -26,19 +26,16 @@ void RTTracer::init( RTScene *scene, RTCamera *camera, RTVector **pixels, RTImag
 
 void RTTracer::setMaxTraceDepth( int maxTraceDepth )
 {
-    qDebug() << "RTTracer::setMaxTraceDepth value: " << maxTraceDepth;
     MaxTraceDepth = maxTraceDepth;
 }
 
 void RTTracer::render()
 {
-    while( !ImageParts->isEmpty() )
+    PART p;
+    while( ImageParts->getPart( p ) )
     {
-        PART  p    = ImageParts->getPart();
         float rowf = static_cast<float>( p.startRow );
         float colf = static_cast<float>( p.startCol );
-        QVector3D rayOrigin;
-        Camera->setRayOrigin( rayOrigin );
 
         for ( unsigned int row = p.startRow; row < p.endRow; row++ )
         {
@@ -51,7 +48,7 @@ void RTTracer::render()
                 RTVector color( 0.0f, 0.0f, 0.0f );
                 castRay( ray, color, 0 );
 
-                Pixels[row][col] = color;
+                Image->setPixel( row, col, color );
 
                 colf++;
             }
@@ -59,9 +56,6 @@ void RTTracer::render()
             rowf++;
         }
     }
-
-    emit updateTimer();
-    emit finished();
 }
 
 RTObject* RTTracer::Trace( RTRay &ray, float &distance, float &u, float &v, unsigned int &triangleIndex )

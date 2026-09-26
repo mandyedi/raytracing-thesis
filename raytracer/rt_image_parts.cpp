@@ -18,17 +18,14 @@ void RTImageParts::addPart( unsigned int startRow, unsigned int startCol, unsign
     List.push_back( part );
 }
 
-PART RTImageParts::getPart()
+bool RTImageParts::getPart( PART &part )
 {
-    QMutexLocker ml( &Mutex );
-    PART retVal = List.last();
-    List.removeLast();
-    return retVal;
-}
-
-bool RTImageParts::isEmpty()
-{
-    QMutexLocker ml( &Mutex );
-    bool retVal = List.empty();
-    return retVal;
+    std::lock_guard<std::mutex> lock( Mutex );
+    if ( List.empty() )
+    {
+        return false;
+    }
+    part = List.back();
+    List.pop_back();
+    return true;
 }

@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-class RTVector
+class alignas( 16 ) RTVector
 {
 
 private:
@@ -79,7 +79,7 @@ public:
     friend RTVector operator - ( const RTVector &a, const RTVector &b );
     friend RTVector operator - ( const RTVector &v );
     friend std::ostream& operator << ( std::ostream& os, const RTVector &v );
-} __attribute__ ( ( aligned (16) ) );
+};
 
 inline RTVector &RTVector::operator += ( const RTVector &v )
 {

@@ -34,3 +34,8 @@ void RTDistantLight::setDirectionZ( float z )
 {
     Direction.setZ( z );
 }
+
+RTVector RTDistantLight::getDirection()
+{
+    return Direction;
+}

@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include <QLabel>
 #include <QScrollArea>
-#include "math/rt_vector.h"
+#include "raytracer/rt_image.h"
 
 class ImageViewer : public QMainWindow
 {
@@ -12,7 +12,7 @@ class ImageViewer : public QMainWindow
 public:
     explicit ImageViewer( QWidget *parent = 0 );
 
-    void create( RTVector **buffer, int imageWidth, int imageHeight );
+    void create( const RTImage &image );
     void savePNG();
     void open( QImage *_image );
 
