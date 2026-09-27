@@ -430,7 +430,7 @@ bool RTObject::intersectTriangleSIMDPacked( const RTVectorPack &scalePack, const
 
     // ray and triangle are parallel if det is close to 0
     __m128 detMask = _mm_cmplt_ps( _mm_andnot_ps( maskFloatSign, det ), zerosE );
-    if ( _mm_movemask_ps( detMask ) == 0xff )
+    if ( _mm_movemask_ps( detMask ) == 0xf )
     {
         return false;
     }
@@ -445,7 +445,7 @@ bool RTObject::intersectTriangleSIMDPacked( const RTVectorPack &scalePack, const
     __m128 maskA = _mm_cmplt_ps( uPack, zeros );
     __m128 maskB = _mm_cmpgt_ps( uPack, ones );
     __m128 maskAB = _mm_or_ps( maskA, maskB );
-    if ( _mm_movemask_ps( maskAB ) == 0xff )
+    if ( _mm_movemask_ps( maskAB ) == 0xf )
     {
         return false;
     }
@@ -458,7 +458,7 @@ bool RTObject::intersectTriangleSIMDPacked( const RTVectorPack &scalePack, const
     maskA = _mm_cmplt_ps( vPack, zeros );
     maskB = _mm_cmpgt_ps( _mm_add_ps( uPack, vPack ), ones );
     maskAB = _mm_or_ps( maskA, maskB );
-    if ( _mm_movemask_ps( maskAB ) == 0xff )
+    if ( _mm_movemask_ps( maskAB ) == 0xf )
     {
         return false;
     }
