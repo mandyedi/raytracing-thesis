@@ -16,6 +16,10 @@ public: // functions
     RTObject( std::string objFileName, RTVector position );
     ~RTObject();
 
+    // Owns its vertex and normal arrays
+    RTObject( const RTObject& ) = delete;
+    RTObject& operator=( const RTObject& ) = delete;
+
     enum class RTMaterialType { Diffuse = 0, Specular, DiffuseAndSpecular, Reflective, Size };
     enum class RTObjectType { Plane = 0, Sphere, Cube, Pyramid, Cylinder, Cone, Tours, Obj, Size };
 

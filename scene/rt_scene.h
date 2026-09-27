@@ -16,6 +16,10 @@ public:
     RTScene();
     ~RTScene();
 
+    // The scene owns its objects and lights
+    RTScene( const RTScene& ) = delete;
+    RTScene& operator=( const RTScene& ) = delete;
+
     // Object
     void addObject( RTObject *object );
     void setActiveObject( const std::string &name );

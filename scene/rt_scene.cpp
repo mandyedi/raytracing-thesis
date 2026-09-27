@@ -20,6 +20,7 @@ RTScene::RTScene()
 
 RTScene::~RTScene()
 {
+    removeAll();
 }
 
 void RTScene::addObject( RTObject *object )

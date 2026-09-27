@@ -224,6 +224,5 @@ int main( int argc, char *argv[] )
               << settings.Width << "x" << settings.Height << ", " << settings.NumberOfThreads << " threads, "
               << ( settings.UseSIMD ? "SSE" : "scalar" ) << ", " << renderer.getRenderTime() << " s\n";
 
-    scene.removeAll();
     return ExitSuccess;
 }

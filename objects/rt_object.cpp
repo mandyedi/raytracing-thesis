@@ -138,6 +138,8 @@ RTObject::RTObject( std::string objFileName, RTVector position )
 RTObject::~RTObject()
 {
     delete [] Vertices;
+    delete [] TriangleNormals;
+    delete [] VertexNormals;
     _mm_free( VerticesSIMDPack );
 }
 

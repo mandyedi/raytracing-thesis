@@ -77,5 +77,5 @@ void GLGrid::createVertexVBO()
     VBOVertex->bind();
     VBOVertex->setUsagePattern( QGLBuffer::StaticDraw );
     VBOVertex->allocate( Vertices, NumberOfVertices * sizeof( QVector3D ) );
-    delete Vertices;
+    delete[] Vertices;
 }
