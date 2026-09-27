@@ -239,8 +239,8 @@ void RTTracer::castRay( RTRay &_ray, RTVector &_color, const int &_depth )
                     R = reflect( lightDirection, hitNormal );
                 }
                 specular += shadow * intensity * std::pow( std::max( 0.f, RTVector::DotProduct( R, -_ray.Direction ) ), object->getSpecularExponent() );
-                _color += diffuse * object->getDiffuse() + specular * object->getSpecular();
             }
+            _color += diffuse * object->getDiffuse() + specular * object->getSpecular();
         }
         else if ( object->getMaterialType() == RTObject::RTMaterialType::Reflective )
         {
