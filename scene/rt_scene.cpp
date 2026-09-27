@@ -357,7 +357,7 @@ bool RTScene::openScene( const std::string &fileName, std::string &error )
 
         std::istringstream in( line );
         std::string header;
-        if ( !( in >> header ) )
+        if ( !( in >> header ) || header[0] == '#' )
         {
             continue;
         }

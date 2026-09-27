@@ -55,6 +55,7 @@ The defaults match the GUI: 800×600 and trace depth 3. It uses all hardware thr
 - `c eye.xyz at.xyz`
 - `o type pos.xyz scale.xyz color.rgb material diffuse specular specExp reflection smooth`
 - `l type pos.xyz scale.xyz color.rgb intensity` (for a distant light, type 1, `pos.xyz` holds its direction)
+- `# comment`: a line whose first non-blank character is `#` is skipped. Blank lines are skipped too. `saveScene` doesn't write comments, so saving a loaded scene drops them.
 
 The type and material values are the integer values of the `RTObjectType`/`RTMaterialType`/light-type enums, so reordering those enums breaks existing scene files. Custom `.obj` objects (type 7) are saved, but loading them fails because the file doesn't store their path. [scenes/example.sc](scenes/example.sc) uses every primitive and material.
 
