@@ -440,7 +440,7 @@ bool RTObject::intersectTriangleSIMDPacked( const RTVectorPack &scalePack, const
     __m128 invDet = _mm_div_ps( ones, det );
 
     RTVectorPack tvec = rayPack.Origin - v0t;
-    uPack = RTVectorPack::dotProduct( tvec, pvec ) * invDet;
+    uPack = _mm_mul_ps( RTVectorPack::dotProduct( tvec, pvec ), invDet );
 
     __m128 maskA = _mm_cmplt_ps( uPack, zeros );
     __m128 maskB = _mm_cmpgt_ps( uPack, ones );
@@ -453,7 +453,7 @@ bool RTObject::intersectTriangleSIMDPacked( const RTVectorPack &scalePack, const
     maskValid = _mm_andnot_ps( maskAB, maskValid );
 
     RTVectorPack qvec = RTVectorPack::crossProduct( tvec, v0v1 );
-    vPack = RTVectorPack::dotProduct( rayPack.Direction, qvec ) * invDet;
+    vPack = _mm_mul_ps( RTVectorPack::dotProduct( rayPack.Direction, qvec ), invDet );
 
     maskA = _mm_cmplt_ps( vPack, zeros );
     maskB = _mm_cmpgt_ps( _mm_add_ps( uPack, vPack ), ones );
@@ -465,7 +465,7 @@ bool RTObject::intersectTriangleSIMDPacked( const RTVectorPack &scalePack, const
 
     maskValid = _mm_andnot_ps( maskAB, maskValid );
 
-    tPack = RTVectorPack::dotProduct( v0v2, qvec ) * invDet;
+    tPack = _mm_mul_ps( RTVectorPack::dotProduct( v0v2, qvec ), invDet );
 
     maskA = _mm_cmplt_ps( tPack, zerosE );
     maskValid = _mm_andnot_ps( maskA, maskValid );
