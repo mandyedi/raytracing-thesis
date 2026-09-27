@@ -7,7 +7,7 @@
 class RTVectorPack
 {
 public:
-    RTVectorPack();
+    RTVectorPack() {}
 
     RTVectorPack( const RTVector &v0, const RTVector &v1, const RTVector &v2, const RTVector &v3 )
     {
@@ -15,8 +15,6 @@ public:
         PackY = _mm_set_ps( v3.y(), v2.y(), v1.y(), v0.y() );
         PackZ = _mm_set_ps( v3.z(), v2.z(), v1.z(), v0.z() );
     }
-
-    ~RTVectorPack();
 
     float get0( __m128 &pack ) const
     {

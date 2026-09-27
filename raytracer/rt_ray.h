@@ -6,8 +6,13 @@
 class RTRay
 {
 public:
-    RTRay();
-    RTRay( const RTVector &origin, const RTVector &direction );
+    RTRay() {}
+
+    RTRay( const RTVector &origin, const RTVector &direction )
+        : Origin( origin )
+        , Direction( direction )
+    {
+    }
 
     RTVector Origin;
     RTVector Direction;

@@ -14,15 +14,11 @@ find_package( Threads REQUIRED )
 
 # Ray tracing core, shared by the CLI and the GUI. It must not depend on Qt.
 add_library( raytracer_core STATIC
-    math/rt_vector.cpp
-    math/rt_vector_pack.cpp
     math/utils.cpp
     objects/rt_object.cpp
     objects/rt_light.cpp
     objects/rt_point_light.cpp
     objects/rt_distant_light.cpp
-    raytracer/rt_ray.cpp
-    raytracer/rt_ray_pack.cpp
     raytracer/rt_image.cpp
     raytracer/rt_image_parts.cpp
     raytracer/rt_tracer.cpp

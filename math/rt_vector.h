@@ -2,6 +2,8 @@
 #define RT_VECTOR_H
 
 #include <iostream>
+#include <math.h>
+#include "utils.h"
 
 class alignas( 16 ) RTVector
 {
@@ -27,8 +29,6 @@ public:
         Vector[1] = y;
         Vector[2] = z;
     }
-
-    ~RTVector();
 
     inline float x() const
     {
@@ -80,6 +80,56 @@ public:
     friend RTVector operator - ( const RTVector &v );
     friend std::ostream& operator << ( std::ostream& os, const RTVector &v );
 };
+
+inline RTVector RTVector::Normalized() const
+{
+    float length = Length();
+    if ( !Utils::IsNull( length ) )
+    {
+        float invLength = 1.0f / length;
+        return RTVector( Vector[0] * invLength , Vector[1] * invLength, Vector[2] * invLength );
+    }
+    else if ( Utils::IsNull( length - 1.0f ) )
+    {
+        return *this;
+    }
+
+    return RTVector();
+}
+
+inline void RTVector::Normalize()
+{
+    float length = Length();
+    if ( Utils::IsNull( length ) || Utils::IsNull( length - 1.0f ) )
+    {
+        return;
+    }
+
+    float invLength = 1.0f / length;
+    Vector[0] *= invLength;
+    Vector[1] *= invLength;
+    Vector[2] *= invLength;
+}
+
+inline float RTVector::Length() const
+{
+    return sqrtf( Vector[0] * Vector[0] + Vector[1] * Vector[1] + Vector[2] * Vector[2] );
+}
+
+/*static*/ inline float RTVector::DotProduct( const RTVector &a, const RTVector &b )
+{
+    return a.Vector[0] * b.Vector[0] + a.Vector[1] * b.Vector[1] + a.Vector[2] * b.Vector[2];
+}
+
+/*static*/ inline RTVector RTVector::CrossProduct( const RTVector &a, const RTVector &b )
+{
+    // [0] X
+    // [1] Y
+    // [2] Z
+    return RTVector( a.Vector[1] * b.Vector[2] - a.Vector[2] * b.Vector[1],
+                     a.Vector[2] * b.Vector[0] - a.Vector[0] * b.Vector[2],
+                     a.Vector[0] * b.Vector[1] - a.Vector[1] * b.Vector[0] );
+}
 
 inline RTVector &RTVector::operator += ( const RTVector &v )
 {

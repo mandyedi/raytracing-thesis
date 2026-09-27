@@ -7,15 +7,13 @@
 class RTRayPack
 {
 public:
-    RTRayPack();
+    RTRayPack() {}
 
     RTRayPack( const RTVector &origin, const RTVector &direction )
     {
         Origin    = RTVectorPack( origin, origin, origin, origin );
         Direction = RTVectorPack( direction, direction, direction, direction );
     }
-
-    ~RTRayPack();
 
     RTVectorPack Origin;
     RTVectorPack Direction;
