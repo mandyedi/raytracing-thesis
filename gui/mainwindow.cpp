@@ -50,20 +50,18 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->imagePartsHComboBox->insertItem( 0, "1" );
     ui->imagePartsHComboBox->insertItem( 1, "2" );
     ui->imagePartsHComboBox->insertItem( 2, "4" );
-    ui->imagePartsHComboBox->insertItem( 3, "5" );
-    ui->imagePartsHComboBox->insertItem( 4, "8" );
-    ui->imagePartsHComboBox->insertItem( 5, "10" );
-    ui->imagePartsHComboBox->setCurrentIndex( 1 );
+    ui->imagePartsHComboBox->insertItem( 3, "8" );
+    ui->imagePartsHComboBox->insertItem( 4, "16" );
+    ui->imagePartsHComboBox->insertItem( 5, "32" );
+    ui->imagePartsHComboBox->setCurrentIndex( 5 );
 
     ui->imagePartsVComboBox->insertItem( 0, "1" );
     ui->imagePartsVComboBox->insertItem( 1, "2" );
-    ui->imagePartsVComboBox->insertItem( 2, "3" );
-    ui->imagePartsVComboBox->insertItem( 3, "4" );
-    ui->imagePartsVComboBox->insertItem( 4, "5" );
-    ui->imagePartsVComboBox->insertItem( 6, "6" );
-    ui->imagePartsVComboBox->insertItem( 7, "8" );
-    ui->imagePartsVComboBox->insertItem( 8, "10" );
-    ui->imagePartsVComboBox->setCurrentIndex( 1 );
+    ui->imagePartsVComboBox->insertItem( 2, "4" );
+    ui->imagePartsVComboBox->insertItem( 3, "8" );
+    ui->imagePartsVComboBox->insertItem( 4, "16" );
+    ui->imagePartsVComboBox->insertItem( 5, "32" );
+    ui->imagePartsVComboBox->setCurrentIndex( 5 );
 }
 
 MainWindow::~MainWindow()
