@@ -83,7 +83,7 @@ void GLWidget::paintGL()
         ShaderProgram->enableAttributeArray( "vPosition" );
         ShaderProgram->setAttributeBuffer( "vPosition", GL_FLOAT, 0, 3, 0 );
 
-        glDrawArrays( object->getGlObject()->getDrawMode(), 0, object->getGlObject()->getVertexBuffer()->size() );
+        glDrawArrays( object->getGlObject()->getDrawMode(), 0, object->getGlObject()->getNumberOfVertices() );
 
         object->getGlObject()->getVertexBuffer()->release();
     }
@@ -112,7 +112,7 @@ void GLWidget::paintGL()
         ShaderProgram->enableAttributeArray( "vPosition" );
         ShaderProgram->setAttributeBuffer( "vPosition", GL_FLOAT, 0, 3, 0 );
 
-        glDrawArrays(light->getGlObject()->getDrawMode(), 0, light->getGlObject()->getVertexBuffer()->size() );
+        glDrawArrays( light->getGlObject()->getDrawMode(), 0, light->getGlObject()->getNumberOfVertices() );
 
         light->getGlObject()->getVertexBuffer()->release();
     }

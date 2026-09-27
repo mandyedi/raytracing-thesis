@@ -23,6 +23,11 @@ public:
         return &VertexBuffer;
     }
 
+    inline int getNumberOfVertices()
+    {
+        return NumberOfVertices;
+    }
+
 private:
     QGLBuffer   VertexBuffer;
     QVector3D  *Vertices;

@@ -47,7 +47,7 @@ void GLObject::createVertexBuffer()
 
 GLenum GLObject::getDrawMode()
 {
-    return GL_TRIANGLE_STRIP;
+    return GL_TRIANGLES;
 }
 
 
