@@ -1,5 +1,6 @@
 #include <cmath>
 #include <limits>
+#include <vector>
 #include <emmintrin.h>
 #include "rt_object.h"
 #include "3rd_party/tiny_obj_loader.h"
@@ -73,25 +74,28 @@ RTObject::RTObject( std::string objFileName, RTVector position )
             TriangleNormals[i / 3].Normalize();
         }
 
+        // Corners (positions in mesh.indices) of each vertex, in order, so a corner finds
+        // the triangles that share its vertex without scanning the whole mesh
+        std::vector<std::vector<unsigned int>> cornersOfVertex( mesh.positions.size() / 3 );
+        for ( unsigned int i = 0; i < mesh.indices.size(); i++ )
+        {
+            cornersOfVertex[mesh.indices[i]].push_back( i );
+        }
+
         // Create vertex normals
         VertexNormals = new RTVector[NumberOfVertices];
         for ( unsigned int i = 0; i < mesh.indices.size(); i++ )
         {
-            unsigned int indexOuter = mesh.indices[i];
             VertexNormals[i].setX( 0 );
             VertexNormals[i].setY( 0 );
             VertexNormals[i].setZ( 0 );
             const RTVector &currentNormal = TriangleNormals[i / 3];
-            for ( unsigned int j = 0; j < mesh.indices.size(); j++ )
+            for ( unsigned int j : cornersOfVertex[mesh.indices[i]] )
             {
-                unsigned int indexInner = mesh.indices[j];
-                if ( indexOuter == indexInner )
+                float d = RTVector::DotProduct( currentNormal, TriangleNormals[j / 3] );
+                if ( d > 0.5f )
                 {
-                    float d = RTVector::DotProduct( currentNormal, TriangleNormals[j / 3] );
-                    if ( d > 0.5f )
-                    {
-                        VertexNormals[i] += TriangleNormals[j / 3];
-                    }
+                    VertexNormals[i] += TriangleNormals[j / 3];
                 }
             }
             VertexNormals[i].Normalize();
