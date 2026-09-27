@@ -40,6 +40,9 @@ public: // functions
     const RTVector* getVertices();
     unsigned int    getNumberOfVertices();
 
+    // The world space triangles of updateWorldSpace(): v0, v1 - v0 and v2 - v0 for each triangle
+    const RTVector* getWorldTriangles();
+
     inline GLObject* getGlObject()
     {
         return Globject.get();
@@ -102,13 +105,9 @@ private:
     // other two (v0, v1 - v0, v2 - v0), padded like Vertices
     RTVector *WorldTriangles;
 
-    bool intersectTriangle( const RTRay &ray, const RTVector &v0, const RTVector &v0v1, const RTVector &v0v2, float &t, float &u, float &v );
-
     // The same for the SIMD path: 3 packs (v0, v0v1, v0v2) per 4 triangles
     RTVectorPack *WorldTrianglePacks;
     unsigned int NumberOfWorldTrianglePacks;
-
-    bool intersectTriangleSIMDPacked( const RTRayPack &rayPack, const RTVectorPack &v0, const RTVectorPack &v0v1, const RTVectorPack &v0v2, __m128 &tPack, __m128 &maskValid, __m128 &uPack, __m128 &vPack );
 };
 
 #endif // RT_OBJECT_H

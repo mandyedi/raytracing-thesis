@@ -6,6 +6,7 @@
 #include "rt_renderer.h"
 #include "rt_image_parts.h"
 #include "rt_tracer.h"
+#include "rt_bvh.h"
 #include "objects/rt_object.h"
 #include "scene/rt_camera.h"
 
@@ -24,11 +25,16 @@ RTImage RTRenderer::render( RTScene *scene, const RTCamera &camera )
     RTCamera imageCamera( camera );
     imageCamera.setScreenSize( width, height );
 
+    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+
     // The GUI moves objects between renders
     for ( RTObject *object : scene->getObjects() )
     {
         object->updateWorldSpace();
     }
+
+    RTBVH bvh;
+    bvh.build( scene );
 
     // Tiles are clipped at the right and bottom edge, so any image size works
     RTImageParts parts;
@@ -47,9 +53,8 @@ RTImage RTRenderer::render( RTScene *scene, const RTCamera &camera )
     {
         tracer.init( scene, &imageCamera, &image, &parts, Settings.UseSIMD );
         tracer.setMaxTraceDepth( Settings.MaxTraceDepth );
+        tracer.setBVH( &bvh );
     }
-
-    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 
     std::vector<std::thread> threads;
     for ( RTTracer &tracer : tracers )

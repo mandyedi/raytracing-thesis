@@ -23,10 +23,11 @@ class RTRenderer
 public:
     explicit RTRenderer( const RTRenderSettings &settings );
 
-    // Blocks until the image is done. Rays come from a copy of the camera, sized to the image.
+    // Blocks until the image is done. Rays come from a copy of the camera, sized to the image,
+    // and find their hits through a BVH built for this render.
     RTImage render( RTScene *scene, const RTCamera &camera );
 
-    // Seconds the last render took
+    // Seconds the last render took, building the BVH included
     double getRenderTime();
 
 private:

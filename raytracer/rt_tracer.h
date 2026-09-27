@@ -9,6 +9,7 @@
 #include "math/rt_vector.h"
 
 class RTObject;
+class RTBVH;
 
 class RTTracer
 {
@@ -16,6 +17,9 @@ public:
     RTTracer();
     void init( RTScene *scene, RTCamera *camera, RTImage *image, RTImageParts *imageParts, bool useSIMD );
     void setMaxTraceDepth( int maxTraceDepth );
+
+    // Rays find their hits through the BVH; without one (after init), they test every object
+    void setBVH( const RTBVH *bvh );
 
     // Renders image parts until none are left; one call per render thread
     void render();
@@ -32,6 +36,7 @@ private:
     RTImageParts  *ImageParts;
     int            MaxTraceDepth;
     bool           UseSIMD;
+    const RTBVH   *BVH;
 
     RTObject* Trace( RTRay &ray, float &distance, float &u, float &v, unsigned int &triangleIndex );
 

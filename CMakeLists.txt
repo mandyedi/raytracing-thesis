@@ -23,6 +23,7 @@ add_library( raytracer_core STATIC
     raytracer/rt_image_parts.cpp
     raytracer/rt_tracer.cpp
     raytracer/rt_renderer.cpp
+    raytracer/rt_bvh.cpp
     scene/rt_camera.cpp
     scene/rt_scene.cpp
     3rd_party/tiny_obj_loader.cc

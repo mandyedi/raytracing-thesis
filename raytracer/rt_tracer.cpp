@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "rt_tracer.h"
+#include "rt_bvh.h"
 #include "../objects/rt_object.h"
 #include "../objects/rt_point_light.h"
 #include "../objects/rt_distant_light.h"
@@ -22,11 +23,17 @@ void RTTracer::init( RTScene *scene, RTCamera *camera, RTImage *image, RTImagePa
     ImageParts    = imageParts;
     MaxTraceDepth = 1;
     UseSIMD       = useSIMD;
+    BVH           = nullptr;
 }
 
 void RTTracer::setMaxTraceDepth( int maxTraceDepth )
 {
     MaxTraceDepth = maxTraceDepth;
+}
+
+void RTTracer::setBVH( const RTBVH *bvh )
+{
+    BVH = bvh;
 }
 
 void RTTracer::render()
@@ -60,6 +67,11 @@ void RTTracer::render()
 
 RTObject* RTTracer::Trace( RTRay &ray, float &distance, float &u, float &v, unsigned int &triangleIndex )
 {
+    if ( BVH )
+    {
+        return BVH->intersect( ray, distance, triangleIndex, u, v, UseSIMD );
+    }
+
     RTObject *object = nullptr;
     for ( unsigned int i = 0; i < Scene->getNumberOfObjects(); i++ )
     {

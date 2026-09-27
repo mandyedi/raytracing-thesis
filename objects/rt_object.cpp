@@ -3,6 +3,7 @@
 #include <vector>
 #include <emmintrin.h>
 #include "rt_object.h"
+#include "raytracer/rt_triangle.h"
 #include "3rd_party/tiny_obj_loader.h"
 
 RTObject::RTObject( std::string objFileName, RTVector position )
@@ -141,6 +142,11 @@ const RTVector* RTObject::getVertices()
 unsigned int RTObject::getNumberOfVertices()
 {
     return NumberOfVertices;
+}
+
+const RTVector* RTObject::getWorldTriangles()
+{
+    return WorldTriangles;
 }
 
 void RTObject::setGLObject( std::shared_ptr<GLObject> glObject )
@@ -323,7 +329,7 @@ int RTObject::intersect( const RTRay &ray, float &distance, unsigned int &triang
             __m128 packU;
             __m128 packV;
 
-            if ( intersectTriangleSIMDPacked( rayPack, v0, v0v1, v0v2, packT, mask, packU, packV ) )
+            if ( RTTriangle::intersectPack( rayPack, v0, v0v1, v0v2, packT, mask, packU, packV ) )
             {
                 alignas( 16 ) float tArray[4];
                 _mm_store_ps( tArray, packT );
@@ -362,7 +368,7 @@ int RTObject::intersect( const RTRay &ray, float &distance, unsigned int &triang
             float t = std::numeric_limits<float>::max();
             float tempU;
             float tempV;
-            if ( intersectTriangle( ray, v0, v0v1, v0v2, t, tempU, tempV ) && t < distance )
+            if ( RTTriangle::intersect( ray, v0, v0v1, v0v2, t, tempU, tempV ) && t < distance )
             {
                 distance = t;
                 triangleIndex = i / 3;
@@ -374,93 +380,4 @@ int RTObject::intersect( const RTRay &ray, float &distance, unsigned int &triang
     }
 
     return isect;
-}
-
-bool RTObject::intersectTriangle( const RTRay &ray, const RTVector &v0, const RTVector &v0v1, const RTVector &v0v2, float &t, float &u, float &v )
-{
-    RTVector pvec = RTVector::CrossProduct( ray.Direction, v0v2 );
-    float det = RTVector::DotProduct( v0v1, pvec );
-
-    // ray and triangle are parallel if det is close to 0
-    if ( fabs( static_cast<double>( det ) ) < 0.00000001 )
-    {
-        return false;
-    }
-
-    float invDet = 1 / det;
-
-    RTVector tvec = ray.Origin - v0;
-    u = RTVector::DotProduct( tvec, pvec ) * invDet;
-
-    if ( u < 0 || u > 1 )
-    {
-        return false;
-    }
-
-    RTVector qvec = RTVector::CrossProduct( tvec, v0v1 );
-    v = RTVector::DotProduct( ray.Direction, qvec ) * invDet;
-
-    if ( v < 0 || u + v > 1 )
-    {
-        return false;
-    }
-
-    t = RTVector::DotProduct( v0v2, qvec ) * invDet;
-
-    return ( t > 0 ) ? true : false;
-}
-
-bool RTObject::intersectTriangleSIMDPacked( const RTRayPack &rayPack, const RTVectorPack &v0, const RTVectorPack &v0v1, const RTVectorPack &v0v2, __m128 &tPack, __m128 &maskValid, __m128 &uPack, __m128 &vPack )
-{
-    static const __m128 zeros = _mm_setzero_ps();
-    static const __m128 zerosE = _mm_set1_ps( 0.000001f );
-    static const __m128 ones  = _mm_set1_ps( 1.0f );
-    static const __m128 maskFloatSign = _mm_castsi128_ps( _mm_set1_epi32( 0x80000000 ) );
-
-    RTVectorPack pvec = RTVectorPack::crossProduct( rayPack.Direction, v0v2 );
-    __m128 det = RTVectorPack::dotProduct( v0v1, pvec );
-
-    // ray and triangle are parallel if det is close to 0
-    __m128 detMask = _mm_cmplt_ps( _mm_andnot_ps( maskFloatSign, det ), zerosE );
-    if ( _mm_movemask_ps( detMask ) == 0xf )
-    {
-        return false;
-    }
-
-    maskValid = _mm_andnot_ps( detMask, ones );
-
-    __m128 invDet = _mm_div_ps( ones, det );
-
-    RTVectorPack tvec = rayPack.Origin - v0;
-    uPack = _mm_mul_ps( RTVectorPack::dotProduct( tvec, pvec ), invDet );
-
-    __m128 maskA = _mm_cmplt_ps( uPack, zeros );
-    __m128 maskB = _mm_cmpgt_ps( uPack, ones );
-    __m128 maskAB = _mm_or_ps( maskA, maskB );
-    if ( _mm_movemask_ps( maskAB ) == 0xf )
-    {
-        return false;
-    }
-
-    maskValid = _mm_andnot_ps( maskAB, maskValid );
-
-    RTVectorPack qvec = RTVectorPack::crossProduct( tvec, v0v1 );
-    vPack = _mm_mul_ps( RTVectorPack::dotProduct( rayPack.Direction, qvec ), invDet );
-
-    maskA = _mm_cmplt_ps( vPack, zeros );
-    maskB = _mm_cmpgt_ps( _mm_add_ps( uPack, vPack ), ones );
-    maskAB = _mm_or_ps( maskA, maskB );
-    if ( _mm_movemask_ps( maskAB ) == 0xf )
-    {
-        return false;
-    }
-
-    maskValid = _mm_andnot_ps( maskAB, maskValid );
-
-    tPack = _mm_mul_ps( RTVectorPack::dotProduct( v0v2, qvec ), invDet );
-
-    maskA = _mm_cmplt_ps( tPack, zerosE );
-    maskValid = _mm_andnot_ps( maskA, maskValid );
-
-    return _mm_movemask_ps( _mm_cmpeq_ps( maskValid, ones ) ) == 0x00 ? false : true;
 }
