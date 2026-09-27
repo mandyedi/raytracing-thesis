@@ -120,4 +120,4 @@ l type pos.x pos.y pos.z scale.x scale.y scale.z color.r color.g color.b intensi
 | `color` | The light's color, 0–1. |
 | `intensity` | Brightness: it multiplies `color`. |
 
-A point light shines in all directions from one point and doesn't fade with distance. A distant light is like the sun: its rays are parallel, so its light has the same direction everywhere. Both cast hard shadows from every object. The lights themselves don't show up in the image, and without any light, only the background and its reflections are visible.
+A point light shines in all directions from one point and doesn't fade with distance. A distant light is like the sun: its rays are parallel, so its light has the same direction everywhere. Both cast hard shadows. For a point light, only objects between the surface and the light cast them. The lights themselves don't show up in the image, and without any light, only the background and its reflections are visible.

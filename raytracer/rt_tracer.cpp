@@ -92,6 +92,20 @@ RTObject* RTTracer::Trace( RTRay &ray, float &distance, float &u, float &v, unsi
     return object;
 }
 
+bool RTTracer::isOccluded( RTRay &ray, float maxDistance )
+{
+    if ( BVH )
+    {
+        return BVH->occluded( ray, maxDistance, UseSIMD );
+    }
+
+    float distance = maxDistance;
+    float u;
+    float v;
+    unsigned int triangleIndex;
+    return Trace( ray, distance, u, v, triangleIndex ) != nullptr;
+}
+
 void RTTracer::castRay( RTRay &_ray, RTVector &_color, const int &_depth )
 {
     if ( _depth >= MaxTraceDepth )
@@ -120,16 +134,13 @@ void RTTracer::castRay( RTRay &_ray, RTVector &_color, const int &_depth )
             for ( size_t i = 0; i < Scene->getNumberOfLights(); i++ )
             {
                 RTLight *light = Scene->getLight( i );
-                light->illuminate( hitPoint, lightDirection, intensity );
+                float lightDistance;
+                light->illuminate( hitPoint, lightDirection, intensity, lightDistance );
 
-                // Check shadow then shade
+                // Check shadow then shade: only objects between the point and the light cast a shadow
                 float shadowBias = 0.0001f;     // To avoid shadow-acne (self intersection)
-                float distanceShadow = std::numeric_limits<float>::max();
-                unsigned int triangleIndex = UINT_MAX;
                 RTRay shadowRay( hitPoint + hitNormal * shadowBias, -lightDirection );
-                float uShadow, vShadow;
-                RTObject *shadowObject = Trace( shadowRay, distanceShadow, uShadow, vShadow, triangleIndex );
-                float shadow = shadowObject == nullptr ? 1.f : 0.f;
+                float shadow = isOccluded( shadowRay, lightDistance ) ? 0.f : 1.f;
 
                 // Diffuse component
                 float dot = 0.f;
@@ -155,16 +166,13 @@ void RTTracer::castRay( RTRay &_ray, RTVector &_color, const int &_depth )
             for ( size_t i = 0; i < Scene->getNumberOfLights(); i++ )
             {
                 RTLight *light = Scene->getLight( i );
-                light->illuminate( hitPoint, lightDirection, intensity );
+                float lightDistance;
+                light->illuminate( hitPoint, lightDirection, intensity, lightDistance );
 
-                // Check shadow then shade
+                // Check shadow then shade: only objects between the point and the light cast a shadow
                 float shadowBias = 0.0001f;     // To avoid shadow-acne (self intersection)
-                float distanceShadow = std::numeric_limits<float>::max();
-                unsigned int triangleIndex = UINT_MAX;
                 RTRay shadowRay( hitPoint + hitNormal * shadowBias, -lightDirection );
-                float uShadow, vShadow;
-                RTObject *shadowObject = Trace( shadowRay, distanceShadow, uShadow, vShadow, triangleIndex );
-                float shadow = shadowObject == nullptr ? 1.f : 0.f;
+                float shadow = isOccluded( shadowRay, lightDistance ) ? 0.f : 1.f;
 
                 // Base color: the object's color, shaded like the Diffuse material,
                 // so the object isn't black where it has no highlight
@@ -210,16 +218,13 @@ void RTTracer::castRay( RTRay &_ray, RTVector &_color, const int &_depth )
             for ( size_t i = 0; i < Scene->getNumberOfLights(); i++ )
             {
                 RTLight *light = Scene->getLight( i );
-                light->illuminate( hitPoint, lightDirection, intensity );
+                float lightDistance;
+                light->illuminate( hitPoint, lightDirection, intensity, lightDistance );
 
-                // Check shadow then shade
+                // Check shadow then shade: only objects between the point and the light cast a shadow
                 float shadowBias = 0.0001f;     // To avoid shadow-acne (self intersection)
-                float distanceShadow = std::numeric_limits<float>::max();
-                unsigned int triangleIndex = UINT_MAX;
                 RTRay shadowRay( hitPoint + hitNormal * shadowBias, -lightDirection );
-                float uShadow, vShadow;
-                RTObject *shadowObject = Trace( shadowRay, distanceShadow, uShadow, vShadow, triangleIndex );
-                float shadow = shadowObject == nullptr ? 1.f : 0.f;
+                float shadow = isOccluded( shadowRay, lightDistance ) ? 0.f : 1.f;
 
                 // Diffuse component
                 float dot = 0.f;

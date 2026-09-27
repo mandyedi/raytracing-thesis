@@ -91,10 +91,39 @@ inline float safeInverse( float d )
     return 1.0f / d;
 }
 
+// A ray set up for the slab tests of the child boxes
+struct BoxRay
+{
+    float  Origin[3];
+    float  InvDir[3];
+    __m128 Origin4[3];
+    __m128 InvDir4[3];
+
+    // The rows of Node::Bounds where the ray enters and leaves the boxes on each axis:
+    // Min (row a) and Max (row a + 3), the other way around if it goes in the negative direction
+    int    NearRow[3];
+    int    FarRow[3];
+
+    explicit BoxRay( const RTRay &ray )
+    {
+        const float direction[3] = { ray.Direction.x(), ray.Direction.y(), ray.Direction.z() };
+        Origin[0] = ray.Origin.x();
+        Origin[1] = ray.Origin.y();
+        Origin[2] = ray.Origin.z();
+        for ( int a = 0; a < 3; a++ )
+        {
+            InvDir[a]  = safeInverse( direction[a] );
+            Origin4[a] = _mm_set1_ps( Origin[a] );
+            InvDir4[a] = _mm_set1_ps( InvDir[a] );
+            NearRow[a] = InvDir[a] >= 0.0f ? a : a + 3;
+            FarRow[a]  = InvDir[a] >= 0.0f ? a + 3 : a;
+        }
+    }
+};
+
 // Slab tests of a node's 4 child boxes (Node::Bounds): returns a bit mask of the boxes the ray enters before
-// tMax, and where it enters each one in tNear. On each axis the ray enters a box at the plane in row nearRow
-// (Min, or Max if it goes in the negative direction) and leaves it at the one in row farRow.
-inline int testChildBoxes( const float bounds[6][4], const float *origin, const float *invDir, const int *nearRow, const int *farRow, float tMax, float *tNear )
+// tMax, and where it enters each one in tNear
+inline int testChildBoxes( const float bounds[6][4], const BoxRay &ray, float tMax, float *tNear )
 {
     int mask = 0;
     for ( int i = 0; i < 4; i++ )
@@ -108,8 +137,8 @@ inline int testChildBoxes( const float bounds[6][4], const float *origin, const 
         float tExit  = tMax;
         for ( int a = 0; a < 3; a++ )
         {
-            tEnter = std::max( tEnter, ( bounds[nearRow[a]][i] - origin[a] ) * invDir[a] );
-            tExit  = std::min( tExit, ( bounds[farRow[a]][i] - origin[a] ) * invDir[a] );
+            tEnter = std::max( tEnter, ( bounds[ray.NearRow[a]][i] - ray.Origin[a] ) * ray.InvDir[a] );
+            tExit  = std::min( tExit, ( bounds[ray.FarRow[a]][i] - ray.Origin[a] ) * ray.InvDir[a] );
         }
         tNear[i] = tEnter;
         mask |= ( tEnter <= tExit ? 1 : 0 ) << i;
@@ -118,14 +147,14 @@ inline int testChildBoxes( const float bounds[6][4], const float *origin, const 
 }
 
 // The same for the SIMD path: one SSE lane per child box
-inline int testChildBoxesSIMD( const float bounds[6][4], const __m128 *origin, const __m128 *invDir, const int *nearRow, const int *farRow, float tMax, float *tNear )
+inline int testChildBoxesSIMD( const float bounds[6][4], const BoxRay &ray, float tMax, float *tNear )
 {
     __m128 tEnter = _mm_setzero_ps();
     __m128 tExit  = _mm_set1_ps( tMax );
     for ( int a = 0; a < 3; a++ )
     {
-        tEnter = _mm_max_ps( tEnter, _mm_mul_ps( _mm_sub_ps( _mm_load_ps( bounds[nearRow[a]] ), origin[a] ), invDir[a] ) );
-        tExit  = _mm_min_ps( tExit, _mm_mul_ps( _mm_sub_ps( _mm_load_ps( bounds[farRow[a]] ), origin[a] ), invDir[a] ) );
+        tEnter = _mm_max_ps( tEnter, _mm_mul_ps( _mm_sub_ps( _mm_load_ps( bounds[ray.NearRow[a]] ), ray.Origin4[a] ), ray.InvDir4[a] ) );
+        tExit  = _mm_min_ps( tExit, _mm_mul_ps( _mm_sub_ps( _mm_load_ps( bounds[ray.FarRow[a]] ), ray.Origin4[a] ), ray.InvDir4[a] ) );
     }
     _mm_store_ps( tNear, tEnter );
     return _mm_movemask_ps( _mm_cmple_ps( tEnter, tExit ) );
@@ -425,21 +454,8 @@ RTObject* RTBVH::intersect( const RTRay &ray, float &distance, unsigned int &tri
         return nullptr;
     }
 
-    const float  origin[3]  = { ray.Origin.x(), ray.Origin.y(), ray.Origin.z() };
-    const float  invDir[3]  = { safeInverse( ray.Direction.x() ), safeInverse( ray.Direction.y() ), safeInverse( ray.Direction.z() ) };
-    const __m128 origin4[3] = { _mm_set1_ps( origin[0] ), _mm_set1_ps( origin[1] ), _mm_set1_ps( origin[2] ) };
-    const __m128 invDir4[3] = { _mm_set1_ps( invDir[0] ), _mm_set1_ps( invDir[1] ), _mm_set1_ps( invDir[2] ) };
+    const BoxRay boxRay( ray );
     const RTRayPack rayPack( ray.Origin, ray.Direction );
-
-    // The rows of Node::Bounds where the ray enters and leaves the boxes on each axis:
-    // Min (row a) and Max (row a + 3), the other way around if it goes in the negative direction
-    int nearRow[3];
-    int farRow[3];
-    for ( int a = 0; a < 3; a++ )
-    {
-        nearRow[a] = invDir[a] >= 0.0f ? a : a + 3;
-        farRow[a]  = invDir[a] >= 0.0f ? a + 3 : a;
-    }
 
     Hit hit;
     hit.Distance = distance;
@@ -513,8 +529,8 @@ RTObject* RTBVH::intersect( const RTRay &ray, float &distance, unsigned int &tri
         {
             const Node &node = Nodes[entry.Child];
             alignas( 16 ) float tNear[4];
-            const int mask = useSIMD ? testChildBoxesSIMD( node.Bounds, origin4, invDir4, nearRow, farRow, hit.Distance, tNear )
-                                     : testChildBoxes( node.Bounds, origin, invDir, nearRow, farRow, hit.Distance, tNear );
+            const int mask = useSIMD ? testChildBoxesSIMD( node.Bounds, boxRay, hit.Distance, tNear )
+                                     : testChildBoxes( node.Bounds, boxRay, hit.Distance, tNear );
             if ( mask != 0 )
             {
                 // Sort the children the ray enters, the farthest first. The nearest one is visited next,
@@ -571,4 +587,108 @@ RTObject* RTBVH::intersect( const RTRay &ray, float &distance, unsigned int &tri
     u             = hit.U;
     v             = hit.V;
     return Objects[hit.Object];
+}
+
+bool RTBVH::occluded( const RTRay &ray, float maxDistance, bool useSIMD ) const
+{
+    if ( Nodes.empty() )
+    {
+        return false;
+    }
+
+    const BoxRay boxRay( ray );
+    const RTRayPack rayPack( ray.Origin, ray.Direction );
+
+    // Nodes and leaves to visit, in any order, since the first hit ends the search.
+    // Count > 0 is a leaf, whose first triangle slot is in Child; 0 is a node.
+    struct Entry
+    {
+        unsigned int Child;
+        unsigned int Count;
+    };
+    Entry stack[StackSize];
+    int stackSize = 0;
+    Entry entry;
+    entry.Child = 0;
+    entry.Count = 0;
+    while ( true )
+    {
+        if ( entry.Count > 0 )
+        {
+            if ( useSIMD )
+            {
+                const unsigned int pack = entry.Child / LeafSize * 3;
+                __m128 packT;
+                __m128 mask;
+                __m128 packU;
+                __m128 packV;
+                if ( RTTriangle::intersectPack( rayPack, Packs[pack], Packs[pack + 1], Packs[pack + 2], packT, mask, packU, packV ) )
+                {
+                    alignas( 16 ) float tArray[4];
+                    _mm_store_ps( tArray, packT );
+
+                    alignas( 16 ) float maskArray[4];
+                    _mm_store_ps( maskArray, mask );
+
+                    for ( unsigned int j = 0; j < entry.Count; j++ )
+                    {
+                        if ( tArray[j] > 0 && maskArray[j] && tArray[j] < maxDistance )
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for ( unsigned int slot = entry.Child; slot < entry.Child + entry.Count; slot++ )
+                {
+                    float t = std::numeric_limits<float>::max();
+                    float u;
+                    float v;
+                    if ( RTTriangle::intersect( ray, Triangles[slot * 3], Triangles[slot * 3 + 1], Triangles[slot * 3 + 2], t, u, v ) && t < maxDistance )
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        else
+        {
+            const Node &node = Nodes[entry.Child];
+            alignas( 16 ) float tNear[4];
+            const int mask = useSIMD ? testChildBoxesSIMD( node.Bounds, boxRay, maxDistance, tNear )
+                                     : testChildBoxes( node.Bounds, boxRay, maxDistance, tNear );
+            if ( mask != 0 )
+            {
+                // Visit the first child the ray enters next; the others wait on the stack
+                int next = -1;
+                for ( int i = 0; i < 4; i++ )
+                {
+                    if ( mask & ( 1 << i ) )
+                    {
+                        if ( next < 0 )
+                        {
+                            next = i;
+                        }
+                        else
+                        {
+                            stack[stackSize].Child = node.Child[i];
+                            stack[stackSize].Count = node.Count[i];
+                            stackSize++;
+                        }
+                    }
+                }
+                entry.Child = node.Child[next];
+                entry.Count = node.Count[next];
+                continue;
+            }
+        }
+
+        if ( stackSize == 0 )
+        {
+            return false;
+        }
+        entry = stack[--stackSize];
+    }
 }

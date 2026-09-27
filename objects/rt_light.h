@@ -33,7 +33,9 @@ public:
 
     void setName( const std::string &name );
 
-    virtual void illuminate( const RTVector &hitPoint, RTVector &lightDirection, RTVector &intensity ) const = 0;
+    // The direction the light travels in at hitPoint, its intensity there, and its distance from hitPoint:
+    // only objects closer than that cast a shadow (the largest float for a distant light)
+    virtual void illuminate( const RTVector &hitPoint, RTVector &lightDirection, RTVector &intensity, float &distance ) const = 0;
 
     RTVector  getPosition();
     RTVector  getScale();

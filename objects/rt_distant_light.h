@@ -16,7 +16,7 @@ public:
     }
 
     int intersect( const RTRay &ray, float &distance );
-    void illuminate( const RTVector &hitPoint, RTVector &lightDirection, RTVector &intensity ) const;
+    void illuminate( const RTVector &hitPoint, RTVector &lightDirection, RTVector &intensity, float &distance ) const;
 
     void setDirectionX( float x );
     void setDirectionY( float y );

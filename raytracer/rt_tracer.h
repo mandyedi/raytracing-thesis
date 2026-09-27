@@ -40,6 +40,9 @@ private:
 
     RTObject* Trace( RTRay &ray, float &distance, float &u, float &v, unsigned int &triangleIndex );
 
+    // Shadow ray: true if any triangle is closer than maxDistance
+    bool isOccluded( RTRay &ray, float maxDistance );
+
     // Examples
     void castIntersection( RTRay &ray, RTVector &color );
 };

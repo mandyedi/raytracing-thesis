@@ -45,9 +45,10 @@ int RTPointLight::intersect( const RTRay &ray, float &distance )
     return retval;
 }
 
-void RTPointLight::illuminate( const RTVector &hitPoint, RTVector &lightDirection, RTVector &intensity ) const
+void RTPointLight::illuminate( const RTVector &hitPoint, RTVector &lightDirection, RTVector &intensity, float &distance ) const
 {
     lightDirection = hitPoint - Position;
+    distance = lightDirection.Length();
     lightDirection.Normalize();
     intensity = Intensity * Color;
 }

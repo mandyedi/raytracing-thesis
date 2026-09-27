@@ -1,3 +1,4 @@
+#include <limits>
 #include "rt_distant_light.h"
 
 RTDistantLight::RTDistantLight( RTVector direction, RTVector color, float intensity )
@@ -14,10 +15,11 @@ int RTDistantLight::intersect( const RTRay &ray, float &distance )
     return 0;
 }
 
-void RTDistantLight::illuminate( const RTVector &hitPoint, RTVector &lightDirection, RTVector &intensity ) const
+void RTDistantLight::illuminate( const RTVector &hitPoint, RTVector &lightDirection, RTVector &intensity, float &distance ) const
 {
     lightDirection = Direction;
     intensity      = Color * Intensity;
+    distance       = std::numeric_limits<float>::max();
 }
 
 void RTDistantLight::setDirectionX( float x )

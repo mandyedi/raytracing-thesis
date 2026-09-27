@@ -22,6 +22,10 @@ public:
     // The closest hit before distance, the same one as testing every object with RTObject::intersect
     RTObject* intersect( const RTRay &ray, float &distance, unsigned int &triangleIndex, float &u, float &v, bool useSIMD ) const;
 
+    // True if the ray hits any triangle before maxDistance. It stops at the first one it finds (any hit),
+    // which is all a shadow ray needs.
+    bool occluded( const RTRay &ray, float maxDistance, bool useSIMD ) const;
+
 private:
     // The boxes of the 4 children side by side, one SSE register per row. Missing children have
     // inverted boxes (Min = infinity, Max = -infinity), which no ray hits.
