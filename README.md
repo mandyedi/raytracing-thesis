@@ -71,7 +71,7 @@ o type pos.x pos.y pos.z scale.x scale.y scale.z color.r color.g color.b materia
 | `type` | 0–6 | The shape, see [Object types](#object-types). |
 | `pos` | | Where the mesh's origin goes. [Object types](#object-types) says where the origin is on each shape. |
 | `scale` | | Scale along x, y and z. Objects can't be rotated. |
-| `color` | 0–1 | Surface color. Only Diffuse and Diffuse and specular use it. |
+| `color` | 0–1 | Surface color. Reflective objects ignore it. |
 | `material` | 0–3 | How the surface is shaded, see [Materials](#materials). |
 | `diffuse` | 0–1 | Weight of the diffuse shading. Only Diffuse and specular uses it. |
 | `specular` | 0–1 | Weight of the highlights. Only Diffuse and specular uses it. The GUI sets it to 1 − `diffuse`. |
@@ -102,8 +102,8 @@ Type 7 is a custom `.obj` mesh added in the GUI. The GUI saves it, but a scene f
 | `material` | Name | Shading |
 | --- | --- | --- |
 | 0 | Diffuse | Matte: `color`, lit by each light according to the angle the light hits the surface at. |
-| 1 | Specular | Only the highlights, in the lights' color. `color` isn't used, so the rest of the object is black. |
-| 2 | Diffuse and specular | `diffuse` × the Diffuse shading + `specular` × the Specular shading. |
+| 1 | Specular | Shiny: the Diffuse shading as a base, plus highlights in the lights' color. |
+| 2 | Diffuse and specular | `diffuse` × the Diffuse shading + `specular` × the highlights. |
 | 3 | Reflective | A mirror: `reflection` × whatever the reflected ray hits. `color` and the lights don't affect it. A mirror seen in a mirror reflects only as deep as the trace depth (`--depth`, default 3); past it, it's black. |
 
 ### Lights

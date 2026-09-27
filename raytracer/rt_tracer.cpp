@@ -154,6 +154,22 @@ void RTTracer::castRay( RTRay &_ray, RTVector &_color, const int &_depth )
                 RTObject *shadowObject = Trace( shadowRay, distanceShadow, uShadow, vShadow, triangleIndex );
                 float shadow = shadowObject == nullptr ? 1.f : 0.f;
 
+                // Base color: the object's color, shaded like the Diffuse material,
+                // so the object isn't black where it has no highlight
+                float dot = 0.f;
+                if ( object->getSmoothShading() )
+                {
+                    float dots[3];
+                    for ( unsigned int i = 0; i < 3; i++ )
+                    {
+                        dots[i] = RTVector::DotProduct( hitNormals[i], -lightDirection );
+                    }
+                    dot = ( 1 - u - v ) * dots[0] + u * dots[1] + v * dots[2];
+                } else {
+                    dot = RTVector::DotProduct( hitNormal, -lightDirection );
+                }
+                _color += shadow * object->getColor() * intensity * std::max( 0.0f, dot );
+
                 // Specular component
                 RTVector R;
                 if ( object->getSmoothShading() )
