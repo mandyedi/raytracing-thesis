@@ -12,8 +12,8 @@ namespace
 const float        Infinity     = std::numeric_limits<float>::infinity();
 const unsigned int LeafSize     = 4;    // triangles in a leaf: one SIMD pack
 const int          NumberOfBins = 16;   // split candidates per axis are the planes between the bins
-const int          MaxSAHDepth  = 64;   // deeper nodes are split in half, which bounds the tree depth
-const int          StackSize    = 128;  // more than the tree depth: MaxSAHDepth plus halving the rest
+const int          MaxSAHDepth  = 48;   // deeper binary nodes are split in half, so no path is deeper than 48 + 31
+const int          StackSize    = 256;  // each level of the 4-wide tree leaves at most 3 children waiting: 3 * 79 + 1
 
 struct Hit
 {
@@ -91,19 +91,44 @@ inline float safeInverse( float d )
     return 1.0f / d;
 }
 
-// Slab test: the distance where the ray enters the box, or infinity if it misses the box before tMax.
-// nearPlane is 0 on the axes the ray goes along in the positive direction (it enters at Min), 1 on the others.
-inline float boxEntry( const float *mn, const float *mx, const float *origin, const float *invDir, const int *nearPlane, float tMax )
+// Slab tests of a node's 4 child boxes (Node::Bounds): returns a bit mask of the boxes the ray enters before
+// tMax, and where it enters each one in tNear. On each axis the ray enters a box at the plane in row nearRow
+// (Min, or Max if it goes in the negative direction) and leaves it at the one in row farRow.
+inline int testChildBoxes( const float bounds[6][4], const float *origin, const float *invDir, const int *nearRow, const int *farRow, float tMax, float *tNear )
 {
-    const float *planes[2] = { mn, mx };
-    float tNear = 0.0f;
-    float tFar  = tMax;
+    int mask = 0;
+    for ( int i = 0; i < 4; i++ )
+    {
+        // Missing children come last and have inverted boxes
+        if ( bounds[0][i] == Infinity )
+        {
+            break;
+        }
+        float tEnter = 0.0f;
+        float tExit  = tMax;
+        for ( int a = 0; a < 3; a++ )
+        {
+            tEnter = std::max( tEnter, ( bounds[nearRow[a]][i] - origin[a] ) * invDir[a] );
+            tExit  = std::min( tExit, ( bounds[farRow[a]][i] - origin[a] ) * invDir[a] );
+        }
+        tNear[i] = tEnter;
+        mask |= ( tEnter <= tExit ? 1 : 0 ) << i;
+    }
+    return mask;
+}
+
+// The same for the SIMD path: one SSE lane per child box
+inline int testChildBoxesSIMD( const float bounds[6][4], const __m128 *origin, const __m128 *invDir, const int *nearRow, const int *farRow, float tMax, float *tNear )
+{
+    __m128 tEnter = _mm_setzero_ps();
+    __m128 tExit  = _mm_set1_ps( tMax );
     for ( int a = 0; a < 3; a++ )
     {
-        tNear = std::max( tNear, ( planes[nearPlane[a]][a] - origin[a] ) * invDir[a] );
-        tFar  = std::min( tFar, ( planes[1 - nearPlane[a]][a] - origin[a] ) * invDir[a] );
+        tEnter = _mm_max_ps( tEnter, _mm_mul_ps( _mm_sub_ps( _mm_load_ps( bounds[nearRow[a]] ), origin[a] ), invDir[a] ) );
+        tExit  = _mm_min_ps( tExit, _mm_mul_ps( _mm_sub_ps( _mm_load_ps( bounds[farRow[a]] ), origin[a] ), invDir[a] ) );
     }
-    return tNear <= tFar ? tNear : Infinity;
+    _mm_store_ps( tNear, tEnter );
+    return _mm_movemask_ps( _mm_cmple_ps( tEnter, tExit ) );
 }
 
 } // namespace
@@ -152,13 +177,16 @@ void RTBVH::build( RTScene *scene )
         return;
     }
 
-    // A binary tree whose leaves have at least 1 triangle has fewer than 2 nodes per triangle
-    Nodes.reserve( 2 * triangles.size() );
-    Nodes.push_back( Node() );
-    subdivide( triangles, 0, 0, static_cast<unsigned int>( triangles.size() ), 0 );
+    // First a binary tree; a binary tree whose leaves have at least 1 triangle has fewer than 2 nodes per triangle
+    std::vector<BuildNode> buildNodes;
+    buildNodes.reserve( 2 * triangles.size() );
+    buildNodes.push_back( BuildNode() );
+    subdivide( buildNodes, triangles, 0, 0, static_cast<unsigned int>( triangles.size() ), 0 );
+
+    collapse( buildNodes, 0 );
 }
 
-void RTBVH::subdivide( std::vector<BuildTriangle> &triangles, unsigned int nodeIndex, unsigned int first, unsigned int count, int depth )
+void RTBVH::subdivide( std::vector<BuildNode> &buildNodes, std::vector<BuildTriangle> &triangles, unsigned int nodeIndex, unsigned int first, unsigned int count, int depth )
 {
     float mn[3]          = { Infinity, Infinity, Infinity };
     float mx[3]          = { -Infinity, -Infinity, -Infinity };
@@ -173,13 +201,13 @@ void RTBVH::subdivide( std::vector<BuildTriangle> &triangles, unsigned int nodeI
     // Padded, so rounding in the slab test never skips a triangle that the triangle test hits
     for ( int a = 0; a < 3; a++ )
     {
-        Nodes[nodeIndex].Min[a] = mn[a] - ( 1e-4f + 1e-6f * std::fabs( mn[a] ) );
-        Nodes[nodeIndex].Max[a] = mx[a] + ( 1e-4f + 1e-6f * std::fabs( mx[a] ) );
+        buildNodes[nodeIndex].Min[a] = mn[a] - ( 1e-4f + 1e-6f * std::fabs( mn[a] ) );
+        buildNodes[nodeIndex].Max[a] = mx[a] + ( 1e-4f + 1e-6f * std::fabs( mx[a] ) );
     }
 
     if ( count <= LeafSize )
     {
-        makeLeaf( triangles, nodeIndex, first, count );
+        makeLeaf( buildNodes, triangles, nodeIndex, first, count );
         return;
     }
 
@@ -280,20 +308,20 @@ void RTBVH::subdivide( std::vector<BuildTriangle> &triangles, unsigned int nodeI
         } );
     }
 
-    const unsigned int left = static_cast<unsigned int>( Nodes.size() );
-    Nodes.push_back( Node() );
-    Nodes.push_back( Node() );
-    Nodes[nodeIndex].LeftOrFirst = left;
-    Nodes[nodeIndex].Count       = 0;
+    const unsigned int left = static_cast<unsigned int>( buildNodes.size() );
+    buildNodes.push_back( BuildNode() );
+    buildNodes.push_back( BuildNode() );
+    buildNodes[nodeIndex].LeftOrFirst = left;
+    buildNodes[nodeIndex].Count       = 0;
 
-    subdivide( triangles, left, first, leftCount, depth + 1 );
-    subdivide( triangles, left + 1, first + leftCount, count - leftCount, depth + 1 );
+    subdivide( buildNodes, triangles, left, first, leftCount, depth + 1 );
+    subdivide( buildNodes, triangles, left + 1, first + leftCount, count - leftCount, depth + 1 );
 }
 
-void RTBVH::makeLeaf( const std::vector<BuildTriangle> &triangles, unsigned int nodeIndex, unsigned int first, unsigned int count )
+void RTBVH::makeLeaf( std::vector<BuildNode> &buildNodes, const std::vector<BuildTriangle> &triangles, unsigned int nodeIndex, unsigned int first, unsigned int count )
 {
-    Nodes[nodeIndex].LeftOrFirst = static_cast<unsigned int>( SlotObjects.size() );
-    Nodes[nodeIndex].Count       = count;
+    buildNodes[nodeIndex].LeftOrFirst = static_cast<unsigned int>( SlotObjects.size() );
+    buildNodes[nodeIndex].Count       = count;
 
     const RTVector zero( 0.0f, 0.0f, 0.0f );
     RTVector slots[3][LeafSize];    // v0, v0v1 and v0v2 of the 4 slots
@@ -320,6 +348,76 @@ void RTBVH::makeLeaf( const std::vector<BuildTriangle> &triangles, unsigned int 
     }
 }
 
+unsigned int RTBVH::collapse( const std::vector<BuildNode> &buildNodes, unsigned int buildIndex )
+{
+    // Start with the binary node's children (or the node itself, a leaf root), then replace the largest
+    // inner child with its two children until there are 4
+    unsigned int children[4];
+    int numberOfChildren = 0;
+    const BuildNode &buildNode = buildNodes[buildIndex];
+    if ( buildNode.Count > 0 )
+    {
+        children[numberOfChildren++] = buildIndex;
+    }
+    else
+    {
+        children[numberOfChildren++] = buildNode.LeftOrFirst;
+        children[numberOfChildren++] = buildNode.LeftOrFirst + 1;
+    }
+    while ( numberOfChildren < 4 )
+    {
+        int   open     = -1;
+        float openArea = -1.0f;
+        for ( int i = 0; i < numberOfChildren; i++ )
+        {
+            const BuildNode &child = buildNodes[children[i]];
+            if ( child.Count == 0 && surfaceArea( child.Min, child.Max ) > openArea )
+            {
+                open     = i;
+                openArea = surfaceArea( child.Min, child.Max );
+            }
+        }
+        if ( open < 0 )
+        {
+            break;
+        }
+        const unsigned int left = buildNodes[children[open]].LeftOrFirst;
+        children[open] = left;
+        children[numberOfChildren++] = left + 1;
+    }
+
+    // Written after the recursion, which can reallocate Nodes
+    const unsigned int index = static_cast<unsigned int>( Nodes.size() );
+    Nodes.push_back( Node() );
+    Node node;
+    for ( int i = 0; i < 4; i++ )
+    {
+        if ( i < numberOfChildren )
+        {
+            const BuildNode &child = buildNodes[children[i]];
+            for ( int a = 0; a < 3; a++ )
+            {
+                node.Bounds[a][i]     = child.Min[a];
+                node.Bounds[a + 3][i] = child.Max[a];
+            }
+            node.Child[i] = child.Count > 0 ? child.LeftOrFirst : collapse( buildNodes, children[i] );
+            node.Count[i] = child.Count;
+        }
+        else
+        {
+            for ( int a = 0; a < 3; a++ )
+            {
+                node.Bounds[a][i]     = Infinity;
+                node.Bounds[a + 3][i] = -Infinity;
+            }
+            node.Child[i] = 0;
+            node.Count[i] = 0;
+        }
+    }
+    Nodes[index] = node;
+    return index;
+}
+
 RTObject* RTBVH::intersect( const RTRay &ray, float &distance, unsigned int &triangleIndex, float &u, float &v, bool useSIMD ) const
 {
     if ( Nodes.empty() )
@@ -327,36 +425,47 @@ RTObject* RTBVH::intersect( const RTRay &ray, float &distance, unsigned int &tri
         return nullptr;
     }
 
-    const float origin[3]    = { ray.Origin.x(), ray.Origin.y(), ray.Origin.z() };
-    const float invDir[3]    = { safeInverse( ray.Direction.x() ), safeInverse( ray.Direction.y() ), safeInverse( ray.Direction.z() ) };
-    const int   nearPlane[3] = { invDir[0] >= 0.0f ? 0 : 1, invDir[1] >= 0.0f ? 0 : 1, invDir[2] >= 0.0f ? 0 : 1 };
+    const float  origin[3]  = { ray.Origin.x(), ray.Origin.y(), ray.Origin.z() };
+    const float  invDir[3]  = { safeInverse( ray.Direction.x() ), safeInverse( ray.Direction.y() ), safeInverse( ray.Direction.z() ) };
+    const __m128 origin4[3] = { _mm_set1_ps( origin[0] ), _mm_set1_ps( origin[1] ), _mm_set1_ps( origin[2] ) };
+    const __m128 invDir4[3] = { _mm_set1_ps( invDir[0] ), _mm_set1_ps( invDir[1] ), _mm_set1_ps( invDir[2] ) };
     const RTRayPack rayPack( ray.Origin, ray.Direction );
+
+    // The rows of Node::Bounds where the ray enters and leaves the boxes on each axis:
+    // Min (row a) and Max (row a + 3), the other way around if it goes in the negative direction
+    int nearRow[3];
+    int farRow[3];
+    for ( int a = 0; a < 3; a++ )
+    {
+        nearRow[a] = invDir[a] >= 0.0f ? a : a + 3;
+        farRow[a]  = invDir[a] >= 0.0f ? a + 3 : a;
+    }
 
     Hit hit;
     hit.Distance = distance;
     hit.Found    = false;
 
-    if ( boxEntry( Nodes[0].Min, Nodes[0].Max, origin, invDir, nearPlane, hit.Distance ) == Infinity )
-    {
-        return nullptr;
-    }
-
+    // A node or a leaf to visit, with the distance where the ray enters its box.
+    // Count > 0 is a leaf, whose first triangle slot is in Child; 0 is a node.
     struct Entry
     {
-        unsigned int Node;
+        unsigned int Child;
+        unsigned int Count;
         float        Distance;
     };
     Entry stack[StackSize];
     int stackSize = 0;
-    unsigned int nodeIndex = 0;
+    Entry entry;
+    entry.Child    = 0;
+    entry.Count    = 0;
+    entry.Distance = 0.0f;
     while ( true )
     {
-        const Node &node = Nodes[nodeIndex];
-        if ( node.Count > 0 )
+        if ( entry.Count > 0 )
         {
             if ( useSIMD )
             {
-                const unsigned int pack = node.LeftOrFirst / LeafSize * 3;
+                const unsigned int pack = entry.Child / LeafSize * 3;
                 __m128 packT;
                 __m128 mask;
                 __m128 packU;
@@ -375,9 +484,9 @@ RTObject* RTBVH::intersect( const RTRay &ray, float &distance, unsigned int &tri
                     alignas( 16 ) float vArray[4];
                     _mm_store_ps( vArray, packV );
 
-                    for ( unsigned int j = 0; j < node.Count; j++ )
+                    for ( unsigned int j = 0; j < entry.Count; j++ )
                     {
-                        const unsigned int slot = node.LeftOrFirst + j;
+                        const unsigned int slot = entry.Child + j;
                         if ( tArray[j] > 0 && maskArray[j] && isCloser( tArray[j], SlotObjects[slot], SlotTriangles[slot], hit ) )
                         {
                             setHit( hit, tArray[j], uArray[j], vArray[j], SlotObjects[slot], SlotTriangles[slot] );
@@ -387,7 +496,7 @@ RTObject* RTBVH::intersect( const RTRay &ray, float &distance, unsigned int &tri
             }
             else
             {
-                for ( unsigned int slot = node.LeftOrFirst; slot < node.LeftOrFirst + node.Count; slot++ )
+                for ( unsigned int slot = entry.Child; slot < entry.Child + entry.Count; slot++ )
                 {
                     float t = std::numeric_limits<float>::max();
                     float tempU;
@@ -402,38 +511,48 @@ RTObject* RTBVH::intersect( const RTRay &ray, float &distance, unsigned int &tri
         }
         else
         {
-            // Visit the nearer child first; the other one waits on the stack
-            unsigned int nearChild    = node.LeftOrFirst;
-            unsigned int farChild     = nearChild + 1;
-            float        nearDistance = boxEntry( Nodes[nearChild].Min, Nodes[nearChild].Max, origin, invDir, nearPlane, hit.Distance );
-            float        farDistance  = boxEntry( Nodes[farChild].Min, Nodes[farChild].Max, origin, invDir, nearPlane, hit.Distance );
-            if ( farDistance < nearDistance )
+            const Node &node = Nodes[entry.Child];
+            alignas( 16 ) float tNear[4];
+            const int mask = useSIMD ? testChildBoxesSIMD( node.Bounds, origin4, invDir4, nearRow, farRow, hit.Distance, tNear )
+                                     : testChildBoxes( node.Bounds, origin, invDir, nearRow, farRow, hit.Distance, tNear );
+            if ( mask != 0 )
             {
-                std::swap( nearChild, farChild );
-                std::swap( nearDistance, farDistance );
-            }
-            if ( nearDistance != Infinity )
-            {
-                if ( farDistance != Infinity )
+                // Sort the children the ray enters, the farthest first. The nearest one is visited next,
+                // the others wait on the stack.
+                Entry children[4];
+                int numberOfChildren = 0;
+                for ( int i = 0; i < 4; i++ )
                 {
-                    stack[stackSize].Node     = farChild;
-                    stack[stackSize].Distance = farDistance;
-                    stackSize++;
+                    if ( mask & ( 1 << i ) )
+                    {
+                        int k = numberOfChildren++;
+                        while ( k > 0 && children[k - 1].Distance < tNear[i] )
+                        {
+                            children[k] = children[k - 1];
+                            k--;
+                        }
+                        children[k].Child    = node.Child[i];
+                        children[k].Count    = node.Count[i];
+                        children[k].Distance = tNear[i];
+                    }
                 }
-                nodeIndex = nearChild;
+                for ( int i = 0; i < numberOfChildren - 1; i++ )
+                {
+                    stack[stackSize++] = children[i];
+                }
+                entry = children[numberOfChildren - 1];
                 continue;
             }
         }
 
-        // The next node that can still hold a closer hit, or an equally close one, which can win the tie
+        // The next node or leaf that can still hold a closer hit, or an equally close one, which can win the tie
         bool found = false;
         while ( stackSize > 0 )
         {
-            stackSize--;
-            if ( stack[stackSize].Distance <= hit.Distance )
+            entry = stack[--stackSize];
+            if ( entry.Distance <= hit.Distance )
             {
-                nodeIndex = stack[stackSize].Node;
-                found     = true;
+                found = true;
                 break;
             }
         }
