@@ -14,7 +14,7 @@ RTLight::~RTLight()
 {
 }
 
-void RTLight::setGLObject( GLObject *glObject )
+void RTLight::setGLObject( std::shared_ptr<GLObject> glObject )
 {
     Globject = glObject;
 }

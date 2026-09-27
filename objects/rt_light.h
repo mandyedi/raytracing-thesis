@@ -1,6 +1,7 @@
 #ifndef RT_LIGHT_H
 #define RT_LIGHT_H
 
+#include <memory>
 #include <string>
 #include "../raytracer/rt_ray.h"
 #include "math/rt_vector.h"
@@ -21,10 +22,10 @@ public:
 
     inline GLObject* getGlObject()
     {
-        return Globject;
+        return Globject.get();
     }
 
-    void   setGLObject( GLObject *glObject );
+    void   setGLObject( std::shared_ptr<GLObject> glObject );
 
     void   updatePosition( RTVector position );
     void   movePosition( RTVector movementStep );
@@ -48,7 +49,8 @@ protected:
     float    Intensity;
 
 private:
-    GLObject *Globject;
+    // See RTObject::Globject
+    std::shared_ptr<GLObject> Globject;
 };
 
 #endif // RT_LIGHT_H

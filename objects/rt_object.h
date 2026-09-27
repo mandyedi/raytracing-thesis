@@ -1,6 +1,7 @@
 #ifndef RT_OBJECT_H
 #define RT_OBJECT_H
 
+#include <memory>
 #include <string>
 #include <xmmintrin.h>
 #include "raytracer/rt_ray.h"
@@ -37,10 +38,10 @@ public: // functions
 
     inline GLObject* getGlObject()
     {
-        return Globject;
+        return Globject.get();
     }
 
-    void   setGLObject( GLObject *glObject );
+    void   setGLObject( std::shared_ptr<GLObject> glObject );
 
     void   updatePosition( RTVector position );
     void   movePosition( RTVector movementStep );
@@ -81,7 +82,9 @@ private:
     float     Reflection;       // <= 1 && >= 0
     bool      SmoothShading;
 
-    GLObject *Globject;
+    // The GUI creates it where GLObject is complete; a shared_ptr keeps that deleter,
+    // so the Qt-free core can destroy it while only forward-declaring GLObject
+    std::shared_ptr<GLObject> Globject;
 
     RTMaterialType MaterialType;
     RTObjectType ObjectType;

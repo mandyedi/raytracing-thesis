@@ -234,7 +234,7 @@ void GLWidget::createMissingGLObjects()
     {
         if ( object->getGlObject() == nullptr )
         {
-            GLObject *glObject = new GLObject;
+            std::shared_ptr<GLObject> glObject = std::make_shared<GLObject>();
             glObject->init( object->getVertices(), object->getNumberOfVertices() );
             object->setGLObject( glObject );
         }
@@ -245,7 +245,7 @@ void GLWidget::createMissingGLObjects()
         if ( light->getGlObject() == nullptr )
         {
             std::string sphereFile = Scene->getMeshFile( "sphere.obj" );
-            GLObject *glObject = new GLObject;
+            std::shared_ptr<GLObject> glObject = std::make_shared<GLObject>();
             glObject->init( sphereFile );
             light->setGLObject( glObject );
         }

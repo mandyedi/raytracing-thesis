@@ -163,7 +163,7 @@ unsigned int RTObject::getNumberOfVertices()
     return NumberOfVertices;
 }
 
-void RTObject::setGLObject( GLObject *glObject )
+void RTObject::setGLObject( std::shared_ptr<GLObject> glObject )
 {
     Globject = glObject;
 }
