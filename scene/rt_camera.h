@@ -35,6 +35,7 @@ public:
         At  = at;
         CameraType = cameraType;
         CameraView = cameraView;
+        updateForwardAndRight();
     }
 
     RTVector getEye();
@@ -63,13 +64,9 @@ public:
             float xx = ( 2 * ( col + 0.5 ) / ScreenWidth - 1 ) * FOV * AspectRatio;
             float yy = ( 1 - 2 * ( row + 0.5 ) / ScreenHeight ) * FOV;
 
-            RTVector forward = At - Eye;
-            normalize( forward );
-            RTVector right = RTVector::CrossProduct( forward, Up );
-
-            ray.Direction.setX( right.x() * xx + Up.x() * yy + forward.x() );
-            ray.Direction.setY( right.y() * xx + Up.y() * yy + forward.y() );
-            ray.Direction.setZ( right.z() * xx + Up.z() * yy + forward.z() );
+            ray.Direction.setX( Right.x() * xx + Up.x() * yy + Forward.x() );
+            ray.Direction.setY( Right.y() * xx + Up.y() * yy + Forward.y() );
+            ray.Direction.setZ( Right.z() * xx + Up.z() * yy + Forward.z() );
             ray.Direction.Normalize();
 
             ray.Origin.setX( Eye.x() );
@@ -128,9 +125,17 @@ private:
         v.setZ( float( double( v.z() ) / length ) );
     }
 
+    // Recomputes Forward and Right; call it whenever Eye, At or Up change
+    void updateForwardAndRight();
+
     RTVector Eye;
     RTVector At;
     RTVector Up;
+
+    // The normalized view direction and cross( Forward, Up ), so setRayDirection
+    // doesn't recompute them for every pixel
+    RTVector Forward;
+    RTVector Right;
 
     float AngleH;
     float AngleV;

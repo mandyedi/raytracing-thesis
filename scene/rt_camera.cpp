@@ -15,12 +15,14 @@ RTCamera::RTCamera()
     , CameraView( RTCameraViewNone )
 {
     setScreenSize( 800, 600 );
+    updateForwardAndRight();
 }
 
 void RTCamera::moveCamera( const RTVector &direction )
 {
     Eye += direction;
     At  += direction;
+    updateForwardAndRight();
 }
 
 void RTCamera::rotateCamera( const float &h, const float &v )
@@ -43,6 +45,14 @@ void RTCamera::rotateCamera( const float &h, const float &v )
                 cosf( AngleH - 3.14f / 2.0f )
     );
     Up = RTVector::CrossProduct( right, direction );
+    updateForwardAndRight();
+}
+
+void RTCamera::updateForwardAndRight()
+{
+    Forward = At - Eye;
+    normalize( Forward );
+    Right = RTVector::CrossProduct( Forward, Up );
 }
 
 void RTCamera::setScreenSize( const int &width, const int &height )
