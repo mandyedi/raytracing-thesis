@@ -272,6 +272,8 @@ void GLWidget::mousePressEvent( QMouseEvent *event )
 
         for( size_t i = 0; i < Scene->getNumberOfObjects(); i++ )
         {
+            // The object may have moved since the last render
+            Scene->getObject( i )->updateWorldSpace();
             if( Scene->getObject( i )->intersect( ray, distance, triangleIndex, u, v, true ) )
             {
                 LastMousePosX = event->x();

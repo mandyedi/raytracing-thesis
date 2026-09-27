@@ -28,6 +28,10 @@ public: // functions
     void getNormalsForSmooth( unsigned int triangleIndex, RTVector &n0, RTVector &n1, RTVector &n2 );
     int intersect( const RTRay &ray, float &distance, unsigned int &triangleIndex, float &u, float &v, bool useSIMD );
 
+    // Rebuilds the world space triangles that intersect() tests from the position and scale.
+    // RTRenderer::render calls it for every object; other callers of intersect() must call it after a move.
+    void updateWorldSpace();
+
     // False if the .obj file could not be loaded; getLoadError() tells why
     bool        isLoaded();
     std::string getLoadError();
@@ -94,12 +98,17 @@ private:
     RTVector *VertexNormals;
     unsigned int NumberOfVertices;
 
-    bool intersectTriangle( const RTRay &ray, const RTVector &v0, const RTVector &v1, const RTVector &v2, float &t, float &u, float &v );
+    // World space triangles from updateWorldSpace(): the first vertex and the edges to the
+    // other two (v0, v1 - v0, v2 - v0), padded like Vertices
+    RTVector *WorldTriangles;
 
-    RTVectorPack *VerticesSIMDPack;
-    unsigned int NumberOfVertexPacks;
+    bool intersectTriangle( const RTRay &ray, const RTVector &v0, const RTVector &v0v1, const RTVector &v0v2, float &t, float &u, float &v );
 
-    bool intersectTriangleSIMDPacked( const RTVectorPack &scalePack, const RTVectorPack &positionPack, const RTRayPack &rayPack, const RTVectorPack &vPack0, const RTVectorPack &vPack1, const RTVectorPack &vPack2, __m128 &tPack, __m128 &maskValid, __m128 &uPack, __m128 &vPack );
+    // The same for the SIMD path: 3 packs (v0, v0v1, v0v2) per 4 triangles
+    RTVectorPack *WorldTrianglePacks;
+    unsigned int NumberOfWorldTrianglePacks;
+
+    bool intersectTriangleSIMDPacked( const RTRayPack &rayPack, const RTVectorPack &v0, const RTVectorPack &v0v1, const RTVectorPack &v0v2, __m128 &tPack, __m128 &maskValid, __m128 &uPack, __m128 &vPack );
 };
 
 #endif // RT_OBJECT_H

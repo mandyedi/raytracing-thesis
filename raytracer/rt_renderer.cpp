@@ -6,6 +6,7 @@
 #include "rt_renderer.h"
 #include "rt_image_parts.h"
 #include "rt_tracer.h"
+#include "objects/rt_object.h"
 #include "scene/rt_camera.h"
 
 RTRenderer::RTRenderer( const RTRenderSettings &settings )
@@ -22,6 +23,12 @@ RTImage RTRenderer::render( RTScene *scene, const RTCamera &camera )
 
     RTCamera imageCamera( camera );
     imageCamera.setScreenSize( width, height );
+
+    // The GUI moves objects between renders
+    for ( RTObject *object : scene->getObjects() )
+    {
+        object->updateWorldSpace();
+    }
 
     // Tiles are clipped at the right and bottom edge, so any image size works
     RTImageParts parts;

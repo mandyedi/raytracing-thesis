@@ -22,8 +22,9 @@ RTObject::RTObject( std::string objFileName, RTVector position )
     , TriangleNormals( nullptr )
     , VertexNormals( nullptr )
     , NumberOfVertices( 0 )
-    , VerticesSIMDPack( nullptr )
-    , NumberOfVertexPacks( 0 )
+    , WorldTriangles( nullptr )
+    , WorldTrianglePacks( nullptr )
+    , NumberOfWorldTrianglePacks( 0 )
 {
     std::vector<tinyobj::shape_t> shapes;
     std::string err = tinyobj::LoadObj( shapes, objFileName.c_str() );
@@ -106,36 +107,10 @@ RTObject::RTObject( std::string objFileName, RTVector position )
             Vertices[i] = Vertices[NumberOfVertices - 1];
         }
 
-        NumberOfVertexPacks = ( NumberOfVertices + reminder ) / 4;
-
-        VerticesSIMDPack = (RTVectorPack*)_mm_malloc( NumberOfVertexPacks * sizeof( RTVectorPack ), 16 );
-
-        unsigned int packIndex = 0;
-        for ( unsigned int i = 0; i < NumberOfVertices + reminder; i += 12 )
-        {
-            // Triangle 0
-            RTVector &v0 = Vertices[i];
-            RTVector &v1 = Vertices[i+1];
-            RTVector &v2 = Vertices[i+2];
-            // Triangle 1
-            RTVector &v3 = Vertices[i+3];
-            RTVector &v4 = Vertices[i+4];
-            RTVector &v5 = Vertices[i+5];
-            // Triangle 2
-            RTVector &v6 = Vertices[i+6];
-            RTVector &v7 = Vertices[i+7];
-            RTVector &v8 = Vertices[i+8];
-            // Triangle 3
-            RTVector &v9 = Vertices[i+9];
-            RTVector &v10 = Vertices[i+10];
-            RTVector &v11 = Vertices[i+11];
-
-            VerticesSIMDPack[packIndex]   = RTVectorPack( v0, v3, v6, v9 );
-            VerticesSIMDPack[packIndex+1] = RTVectorPack( v1, v4, v7, v10 );
-            VerticesSIMDPack[packIndex+2] = RTVectorPack( v2, v5, v8, v11 );
-
-            packIndex += 3;
-        }
+        WorldTriangles = new RTVector[NumberOfVertices + reminder];
+        NumberOfWorldTrianglePacks = ( NumberOfVertices + reminder ) / 4;
+        WorldTrianglePacks = (RTVectorPack*)_mm_malloc( NumberOfWorldTrianglePacks * sizeof( RTVectorPack ), 16 );
+        updateWorldSpace();
     }
 }
 
@@ -144,7 +119,8 @@ RTObject::~RTObject()
     delete [] Vertices;
     delete [] TriangleNormals;
     delete [] VertexNormals;
-    _mm_free( VerticesSIMDPack );
+    delete [] WorldTriangles;
+    _mm_free( WorldTrianglePacks );
 }
 
 bool RTObject::isLoaded()
@@ -299,23 +275,47 @@ void RTObject::getNormalsForSmooth( unsigned int triangleIndex, RTVector &n0, RT
     n2 = VertexNormals[ triangleIndex * 3 + 2 ];
 }
 
+void RTObject::updateWorldSpace()
+{
+    // Vertices and WorldTriangles are padded to a multiple of 12 (4 triangles)
+    const unsigned int numberOfPaddedVertices = NumberOfWorldTrianglePacks * 4;
+
+    for ( unsigned int i = 0; i < numberOfPaddedVertices; i += 3 )
+    {
+        RTVector v0 = ( Vertices[i] * Scale ) + Position;
+        RTVector v1 = ( Vertices[i + 1] * Scale ) + Position;
+        RTVector v2 = ( Vertices[i + 2] * Scale ) + Position;
+        WorldTriangles[i]     = v0;
+        WorldTriangles[i + 1] = v1 - v0;
+        WorldTriangles[i + 2] = v2 - v0;
+    }
+
+    unsigned int packIndex = 0;
+    for ( unsigned int i = 0; i < numberOfPaddedVertices; i += 12 )
+    {
+        // v0, v0v1 and v0v2 of 4 triangles
+        WorldTrianglePacks[packIndex]   = RTVectorPack( WorldTriangles[i],     WorldTriangles[i + 3], WorldTriangles[i + 6], WorldTriangles[i + 9] );
+        WorldTrianglePacks[packIndex+1] = RTVectorPack( WorldTriangles[i + 1], WorldTriangles[i + 4], WorldTriangles[i + 7], WorldTriangles[i + 10] );
+        WorldTrianglePacks[packIndex+2] = RTVectorPack( WorldTriangles[i + 2], WorldTriangles[i + 5], WorldTriangles[i + 8], WorldTriangles[i + 11] );
+
+        packIndex += 3;
+    }
+}
+
 int RTObject::intersect( const RTRay &ray, float &distance, unsigned int &triangleIndex, float &u, float &v, bool useSIMD )
 {
     bool isect = false;
 
     if ( useSIMD )
     {
-        RTVectorPack scalePack( Scale, Scale, Scale, Scale );
-        RTVectorPack positionPack( Position, Position, Position, Position );
-
         RTRayPack rayPack( ray.Origin, ray.Direction );
 
         unsigned int triangleIndexPacked = 0;
-        for( unsigned int i = 0; i < NumberOfVertexPacks; i += 3 )
+        for( unsigned int i = 0; i < NumberOfWorldTrianglePacks; i += 3 )
         {
-            const RTVectorPack &pack0 = VerticesSIMDPack[ i ];
-            const RTVectorPack &pack1 = VerticesSIMDPack[ i + 1 ];
-            const RTVectorPack &pack2 = VerticesSIMDPack[ i + 2 ];
+            const RTVectorPack &v0   = WorldTrianglePacks[ i ];
+            const RTVectorPack &v0v1 = WorldTrianglePacks[ i + 1 ];
+            const RTVectorPack &v0v2 = WorldTrianglePacks[ i + 2 ];
 
             static float max = std::numeric_limits<float>::max();
             __m128 packT = _mm_set1_ps( max );
@@ -323,7 +323,7 @@ int RTObject::intersect( const RTRay &ray, float &distance, unsigned int &triang
             __m128 packU;
             __m128 packV;
 
-            if ( intersectTriangleSIMDPacked( scalePack, positionPack, rayPack, pack0, pack1, pack2, packT, mask, packU, packV ) )
+            if ( intersectTriangleSIMDPacked( rayPack, v0, v0v1, v0v2, packT, mask, packU, packV ) )
             {
                 alignas( 16 ) float tArray[4];
                 _mm_store_ps( tArray, packT );
@@ -356,13 +356,13 @@ int RTObject::intersect( const RTRay &ray, float &distance, unsigned int &triang
     {
         for ( unsigned int i = 0; i < NumberOfVertices; i += 3 )
         {
-            const RTVector &v0 = Vertices[ i ];
-            const RTVector &v1 = Vertices[ i + 1 ];
-            const RTVector &v2 = Vertices[ i + 2 ];
+            const RTVector &v0   = WorldTriangles[ i ];
+            const RTVector &v0v1 = WorldTriangles[ i + 1 ];
+            const RTVector &v0v2 = WorldTriangles[ i + 2 ];
             float t = std::numeric_limits<float>::max();
             float tempU;
             float tempV;
-            if ( intersectTriangle( ray, v0, v1, v2, t, tempU, tempV ) && t < distance )
+            if ( intersectTriangle( ray, v0, v0v1, v0v2, t, tempU, tempV ) && t < distance )
             {
                 distance = t;
                 triangleIndex = i / 3;
@@ -376,14 +376,8 @@ int RTObject::intersect( const RTRay &ray, float &distance, unsigned int &triang
     return isect;
 }
 
-bool RTObject::intersectTriangle( const RTRay &ray, const RTVector &v0, const RTVector &v1, const RTVector &v2, float &t, float &u, float &v )
+bool RTObject::intersectTriangle( const RTRay &ray, const RTVector &v0, const RTVector &v0v1, const RTVector &v0v2, float &t, float &u, float &v )
 {
-    RTVector v0t = ( v0 * Scale ) + Position;
-    RTVector v1t = ( v1 * Scale ) + Position;
-    RTVector v2t = ( v2 * Scale ) + Position;
-
-    RTVector v0v1 = v1t - v0t;
-    RTVector v0v2 = v2t - v0t;
     RTVector pvec = RTVector::CrossProduct( ray.Direction, v0v2 );
     float det = RTVector::DotProduct( v0v1, pvec );
 
@@ -395,7 +389,7 @@ bool RTObject::intersectTriangle( const RTRay &ray, const RTVector &v0, const RT
 
     float invDet = 1 / det;
 
-    RTVector tvec = ray.Origin - v0t;
+    RTVector tvec = ray.Origin - v0;
     u = RTVector::DotProduct( tvec, pvec ) * invDet;
 
     if ( u < 0 || u > 1 )
@@ -416,19 +410,13 @@ bool RTObject::intersectTriangle( const RTRay &ray, const RTVector &v0, const RT
     return ( t > 0 ) ? true : false;
 }
 
-bool RTObject::intersectTriangleSIMDPacked( const RTVectorPack &scalePack, const RTVectorPack &positionPack, const RTRayPack &rayPack, const RTVectorPack &vPack0, const RTVectorPack &vPack1, const RTVectorPack &vPack2, __m128 &tPack, __m128 &maskValid, __m128 &uPack, __m128 &vPack )
+bool RTObject::intersectTriangleSIMDPacked( const RTRayPack &rayPack, const RTVectorPack &v0, const RTVectorPack &v0v1, const RTVectorPack &v0v2, __m128 &tPack, __m128 &maskValid, __m128 &uPack, __m128 &vPack )
 {
     static const __m128 zeros = _mm_setzero_ps();
     static const __m128 zerosE = _mm_set1_ps( 0.000001f );
     static const __m128 ones  = _mm_set1_ps( 1.0f );
     static const __m128 maskFloatSign = _mm_castsi128_ps( _mm_set1_epi32( 0x80000000 ) );
 
-    RTVectorPack v0t = ( vPack0 * scalePack ) + positionPack;
-    RTVectorPack v1t = ( vPack1 * scalePack ) + positionPack;
-    RTVectorPack v2t = ( vPack2 * scalePack ) + positionPack;
-
-    RTVectorPack v0v1 = v1t - v0t;
-    RTVectorPack v0v2 = v2t - v0t;
     RTVectorPack pvec = RTVectorPack::crossProduct( rayPack.Direction, v0v2 );
     __m128 det = RTVectorPack::dotProduct( v0v1, pvec );
 
@@ -443,7 +431,7 @@ bool RTObject::intersectTriangleSIMDPacked( const RTVectorPack &scalePack, const
 
     __m128 invDet = _mm_div_ps( ones, det );
 
-    RTVectorPack tvec = rayPack.Origin - v0t;
+    RTVectorPack tvec = rayPack.Origin - v0;
     uPack = _mm_mul_ps( RTVectorPack::dotProduct( tvec, pvec ), invDet );
 
     __m128 maskA = _mm_cmplt_ps( uPack, zeros );
