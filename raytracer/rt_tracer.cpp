@@ -11,6 +11,22 @@
 
 using namespace  std;
 
+namespace
+{
+
+// Shadow and reflection rays start a little off the surface, along its normal, so they don't hit the triangle
+// they start on. Floats get coarser away from the origin: 8 km out they are 0.5 mm apart, so a fixed offset of
+// 0.0001 disappears in rounding there, and the hit point's own rounding error grows with its coordinates too
+// (about 2e-7 of them). So the offset is 1e-5 of the hit point's largest coordinate, but at least minimumOffset;
+// closer than 10 units to the origin (100 for reflection rays), it's just minimumOffset.
+inline RTVector offsetFromSurface( const RTVector &hitPoint, const RTVector &normal, float minimumOffset )
+{
+    const float largest = std::max( std::fabs( hitPoint.x() ), std::max( std::fabs( hitPoint.y() ), std::fabs( hitPoint.z() ) ) );
+    return hitPoint + normal * std::max( minimumOffset, largest * 0.00001f );
+}
+
+} // namespace
+
 RTTracer::RTTracer()
 {
 }
@@ -138,8 +154,7 @@ void RTTracer::castRay( RTRay &_ray, RTVector &_color, const int &_depth )
                 light->illuminate( hitPoint, lightDirection, intensity, lightDistance );
 
                 // Check shadow then shade: only objects between the point and the light cast a shadow
-                float shadowBias = 0.0001f;     // To avoid shadow-acne (self intersection)
-                RTRay shadowRay( hitPoint + hitNormal * shadowBias, -lightDirection );
+                RTRay shadowRay( offsetFromSurface( hitPoint, hitNormal, 0.0001f ), -lightDirection );
                 float shadow = isOccluded( shadowRay, lightDistance ) ? 0.f : 1.f;
 
                 // Diffuse component
@@ -170,8 +185,7 @@ void RTTracer::castRay( RTRay &_ray, RTVector &_color, const int &_depth )
                 light->illuminate( hitPoint, lightDirection, intensity, lightDistance );
 
                 // Check shadow then shade: only objects between the point and the light cast a shadow
-                float shadowBias = 0.0001f;     // To avoid shadow-acne (self intersection)
-                RTRay shadowRay( hitPoint + hitNormal * shadowBias, -lightDirection );
+                RTRay shadowRay( offsetFromSurface( hitPoint, hitNormal, 0.0001f ), -lightDirection );
                 float shadow = isOccluded( shadowRay, lightDistance ) ? 0.f : 1.f;
 
                 // Base color: the object's color, shaded like the Diffuse material,
@@ -222,8 +236,7 @@ void RTTracer::castRay( RTRay &_ray, RTVector &_color, const int &_depth )
                 light->illuminate( hitPoint, lightDirection, intensity, lightDistance );
 
                 // Check shadow then shade: only objects between the point and the light cast a shadow
-                float shadowBias = 0.0001f;     // To avoid shadow-acne (self intersection)
-                RTRay shadowRay( hitPoint + hitNormal * shadowBias, -lightDirection );
+                RTRay shadowRay( offsetFromSurface( hitPoint, hitNormal, 0.0001f ), -lightDirection );
                 float shadow = isOccluded( shadowRay, lightDistance ) ? 0.f : 1.f;
 
                 // Diffuse component
@@ -263,9 +276,8 @@ void RTTracer::castRay( RTRay &_ray, RTVector &_color, const int &_depth )
         {
             RTVector R = reflect( _ray.Direction, hitNormal );
             R.Normalize();
-            float bias = 0.001f;
             RTVector reflectionColor( 0.0f, 0.0f, 0.0f );
-            RTRay reflectionRay( hitPoint + hitNormal * bias, R );
+            RTRay reflectionRay( offsetFromSurface( hitPoint, hitNormal, 0.001f ), R );
             castRay( reflectionRay, reflectionColor, _depth + 1 );
             _color = object->getReflection() * reflectionColor;
         }
