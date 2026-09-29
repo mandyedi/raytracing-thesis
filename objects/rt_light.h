@@ -32,6 +32,8 @@ public:
     void   setScale( RTVector scale );
 
     void setName( const std::string &name );
+    void setColor( RTVector color );
+    void setIntensity( float intensity );
 
     // The direction the light travels in at hitPoint, its intensity there, and its distance from hitPoint:
     // only objects closer than that cast a shadow (the largest float for a distant light)

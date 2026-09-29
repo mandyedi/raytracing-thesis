@@ -31,6 +31,9 @@ public:
     const std::vector<RTObject*>& getObjects();
     void                          removeActiveObject();
 
+    // Removes and deletes the object with this name; false if there is none
+    bool removeObject( const std::string &name );
+
     std::string addObj( const std::string &objFileName );
     std::string addSphere();
     std::string addPlane();
@@ -41,6 +44,7 @@ public:
     std::string addTorus();
 
     // Light
+    void addLight( RTLight *light );
     void setActiveLight( const std::string &name );
     void noActiveLight();
     std::string addPointLight();
@@ -51,6 +55,9 @@ public:
     RTLight*                     getActiveLight();
     const std::vector<RTLight*>& getLights();
     void                         removeActiveLight();
+
+    // Removes and deletes the light with this name; false if there is none
+    bool removeLight( const std::string &name );
 
     // Common
     void setCamera( RTCamera *camera );

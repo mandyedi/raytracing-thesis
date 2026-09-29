@@ -30,6 +30,8 @@ add_library( raytracer_core STATIC
 )
 target_include_directories( raytracer_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} )
 target_link_libraries( raytracer_core PUBLIC Threads::Threads )
+# The MCP library links it into a shared library, which needs position-independent code on Linux
+set_target_properties( raytracer_core PROPERTIES POSITION_INDEPENDENT_CODE ON )
 if ( CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" )
     target_compile_options( raytracer_core PUBLIC -msse -msse4.1 )
 endif()
@@ -47,6 +49,16 @@ add_custom_command( TARGET raytracer-cli POST_BUILD
             ${CMAKE_CURRENT_SOURCE_DIR}/resources/obj
             $<TARGET_FILE_DIR:raytracer-cli>/resources/obj
 )
+
+# C API for the MCP server: mcp_server/server.py loads it with ctypes
+add_library( raytracer_mcp SHARED mcp_server/rt_mcp_api.cpp )
+target_link_libraries( raytracer_mcp PRIVATE raytracer_core )
+# raytracer_mcp.dll or raytracer_mcp.so, without MinGW's and Linux's "lib" prefix
+set_target_properties( raytracer_mcp PROPERTIES PREFIX "" )
+if ( MINGW )
+    # Loads without the MinGW runtime DLLs on PATH
+    target_link_options( raytracer_mcp PRIVATE -static )
+endif()
 
 # Qt GUI
 if ( RAYTRACER_BUILD_GUI )

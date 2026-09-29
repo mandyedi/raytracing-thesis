@@ -9,6 +9,7 @@ RTCamera::RTCamera()
     , Up( 0.0f, 1.0f, 0.0f )
     , AngleH( 3.14f )
     , AngleV( 0.0f )
+    , FieldOfView( 45.0f )
     , FOV( static_cast<float>( tan( 45.0 * 0.5 * Utils::Pi / 180.0 ) ) )
     , Zoom( 4 )
     , CameraType( RTCameraTypePerspective )
@@ -75,6 +76,23 @@ RTVector RTCamera::getAt()
 RTVector RTCamera::getUp()
 {
     return Up;
+}
+
+void RTCamera::setUp( const RTVector &up )
+{
+    Up = up;
+    updateForwardAndRight();
+}
+
+void RTCamera::setFieldOfView( float degrees )
+{
+    FieldOfView = degrees;
+    FOV = static_cast<float>( tan( degrees * 0.5 * Utils::Pi / 180.0 ) );
+}
+
+float RTCamera::getFieldOfView()
+{
+    return FieldOfView;
 }
 
 int RTCamera::getScreenHeight()

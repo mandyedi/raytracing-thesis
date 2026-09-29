@@ -25,6 +25,35 @@ build/release/raytracer-cli scenes/example.sc -o example.png
 
 It reads the meshes from the `resources` folder next to it, which the build puts there. Run `raytracer-cli --help` for the options: image size, threads, trace depth and SSE.
 
+## MCP server
+
+The MCP server lets an AI assistant such as Claude Code build a scene and render it. It doesn't use scene files: the assistant adds objects and lights with the server's tools, and it can render at any time to see how the scene looks so far. The server is written in Python with the official [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk), while the ray tracing runs in C++: [mcp_server/server.py](mcp_server/server.py) calls the core through the C API in [mcp_server/rt_mcp_api.cpp](mcp_server/rt_mcp_api.cpp), which the build compiles into the `raytracer_mcp` library.
+
+To set it up, run this in the repository folder. You need Python 3.10 or newer.
+
+```sh
+python -m venv mcp_server/.venv
+mcp_server/.venv/Scripts/python -m pip install -r mcp_server/requirements.txt    # Linux: mcp_server/.venv/bin/python
+cmake --build build/release
+```
+
+[.mcp.json](.mcp.json) adds the server to Claude Code for this project. Claude Code asks you to approve it the first time, and `/mcp` shows whether it's connected. On Linux, change `Scripts/python.exe` to `bin/python` in `.mcp.json`. Other MCP clients start it the same way, with the virtual environment's Python and `mcp_server/server.py`, and talk to it over stdio.
+
+The server loads `raytracer_mcp` from `build/release`, or from `build/debug` if there's no release build. To use another build, set `RAYTRACER_MCP_LIBRARY` to the library's path. On Windows the server loads a copy of the library, so you can rebuild while it runs; restart the server to use the new build.
+
+| Tool | What it does |
+| --- | --- |
+| `set_camera` | Places the camera: where it is, the point it looks at and its vertical field of view. |
+| `add_object` | Adds a shape (plane, sphere, cube, pyramid, cylinder, cone or torus) with a position, scale, color and material. |
+| `update_object` | Changes some of an object's properties. |
+| `add_point_light`, `add_distant_light` | Adds a light. |
+| `update_light` | Changes some of a light's properties. |
+| `remove`, `clear_scene` | Removes one object or light, or all of them. |
+| `get_scene` | Returns the camera, objects and lights, with each object's bounding box. |
+| `render` | Renders the scene and returns the PNG image. It can also save it to a file. |
+
+Objects and lights have names, which the assistant chooses or the server generates. Objects, materials and lights work as in [scene files](#scene-files), with two differences: the camera keeps the image upright however far it looks up or down, even straight down, and distant light directions are normalized.
+
 ## Scene files
 
 A scene file (`.sc`) is a text file with one item per line: the first value says what the line adds, `c` for the camera, `o` for an object or `l` for a light. The values after it are separated by spaces and always come in the same order. The GUI's Save Scene writes these files, and you can also write them by hand. [scenes/example.sc](scenes/example.sc) uses every object type and material.

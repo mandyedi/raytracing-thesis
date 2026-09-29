@@ -42,6 +42,15 @@ public:
     RTVector getAt();
     RTVector getUp();
 
+    // setCamera() keeps the up vector, (0, 1, 0) until rotateCamera() changes it. It isn't made
+    // perpendicular to the view direction, so a tilted view comes out slightly zoomed and shifted.
+    // For an exact view, pass an up vector that is perpendicular to it and has length 1.
+    void setUp( const RTVector &up );
+
+    // Vertical field of view of the perspective camera in degrees, 45 by default
+    void  setFieldOfView( float degrees );
+    float getFieldOfView();
+
     int   getScreenHeight();
     int   getScreenWidth();
     float getAspectRatio();
@@ -142,7 +151,8 @@ private:
 
     int   ScreenWidth;
     int   ScreenHeight;
-    float FOV;
+    float FieldOfView;  // degrees
+    float FOV;          // tan( FieldOfView / 2 ), what setRayDirection uses
     float AspectRatio;
     float Zoom;
 

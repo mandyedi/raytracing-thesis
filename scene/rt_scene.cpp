@@ -89,6 +89,31 @@ void RTScene::removeActiveObject()
     }
 }
 
+bool RTScene::removeObject( const std::string &name )
+{
+    for ( size_t i = 0; i < Objects.size(); i++ )
+    {
+        if ( Objects[i]->getName() == name )
+        {
+            // Keep the active object valid: forget it if it goes, or follow it one place down
+            const int index = static_cast<int>( i );
+            if ( index == ActiveObjectIndex )
+            {
+                noActiveObject();
+            }
+            else if ( index < ActiveObjectIndex )
+            {
+                ActiveObjectIndex--;
+            }
+
+            delete Objects[i];
+            Objects.erase( Objects.begin() + index );
+            return true;
+        }
+    }
+    return false;
+}
+
 std::string RTScene::addMesh( RTObject *mesh, const std::string &name )
 {
     if ( !mesh->isLoaded() )
@@ -183,6 +208,11 @@ std::string RTScene::addTorus()
     return addMesh( mesh, "Torus " + std::to_string( ObjectNameCount ) );
 }
 
+void RTScene::addLight( RTLight *light )
+{
+    Lights.push_back( light );
+}
+
 void RTScene::setActiveLight( const std::string &name )
 {
     noActiveObject();
@@ -254,6 +284,31 @@ void RTScene::removeActiveLight()
         delete Lights[ActiveLightIndex];
         Lights.erase( Lights.begin() + ActiveLightIndex );
     }
+}
+
+bool RTScene::removeLight( const std::string &name )
+{
+    for ( size_t i = 0; i < Lights.size(); i++ )
+    {
+        if ( Lights[i]->getName() == name )
+        {
+            // Keep the active light valid: forget it if it goes, or follow it one place down
+            const int index = static_cast<int>( i );
+            if ( index == ActiveLightIndex )
+            {
+                noActiveLight();
+            }
+            else if ( index < ActiveLightIndex )
+            {
+                ActiveLightIndex--;
+            }
+
+            delete Lights[i];
+            Lights.erase( Lights.begin() + index );
+            return true;
+        }
+    }
+    return false;
 }
 
 void RTScene::setCamera( RTCamera *camera )

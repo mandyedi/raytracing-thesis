@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A CPU ray tracer in C++ (originally a university thesis with a Qt GUI), sped up with multithreading and SSE. The original thesis version lives on the `thesis-release` branch. `master` is continuing it as an experiment: building an MCP (Model Context Protocol) server so AI assistants can set up scenes and render ray-traced images. The ray tracing core is Qt-free, and a command line renderer (`raytracer-cli`) renders scene files without Qt.
+A CPU ray tracer in C++ (originally a university thesis with a Qt GUI), sped up with multithreading and SSE. The original thesis version lives on the `thesis-release` branch. `master` is continuing it as an experiment: an MCP (Model Context Protocol) server so AI assistants can set up scenes and render ray-traced images. The ray tracing core is Qt-free. A command line renderer (`raytracer-cli`) renders scene files without Qt, and the MCP server ([mcp_server/](mcp_server/)) builds scenes through a C API over the core.
 
 ## Build
 
@@ -18,6 +18,7 @@ cmake --build build/release
 - Targets:
   - `raytracer_core`: static library with `math/`, `objects/`, `raytracer/`, `scene/` and tinyobjloader. **It must stay Qt-free.** It doesn't link Qt, so a Qt include there fails to compile.
   - `raytracer-cli` ([cli/main.cpp](cli/main.cpp)): links only the core. MinGW links it with `-static`, so it needs no MinGW DLLs. After each build, `resources/obj` is copied next to it.
+  - `raytracer_mcp` ([mcp_server/rt_mcp_api.cpp](mcp_server/rt_mcp_api.cpp)): the MCP server's C API, a shared library (`raytracer_mcp.dll`/`.so`, no `lib` prefix) that links the core. MinGW links it with `-static` too. Because of it the core is compiled with `POSITION_INDEPENDENT_CODE`: `-fPIC` on Linux, which measured 0–1% slower on the larger scenes, and nothing on Windows.
   - `raytracer`: the GUI. It's built only when **Qt 5** is found (Core, Gui, Widgets, OpenGL); `-DRAYTRACER_BUILD_GUI=OFF` skips it. The viewport uses `QGLWidget`, which was removed in Qt 6.
 - C++11, x86-64. GCC/Clang get `-msse -msse4.1`; the code only uses SSE/SSE2 intrinsics, so MSVC needs no flag. Verified with MSYS2 MinGW and MSVC 2022 (CLI only, no Qt for MSVC here) on Windows and GCC on Linux; all three render identical pixels.
 - [.vscode/tasks.json](.vscode/tasks.json) builds `build/debug` and `build/release` with MSYS2 MinGW (`C:\msys64\mingw64\bin`).
@@ -31,6 +32,18 @@ raytracer-cli scenes/example.sc -o example.png [--width 800] [--height 600] [--t
 ```
 
 The defaults match the GUI: 800×600 and trace depth 3. Without `-o`, it writes `<scene name>_<yyyyMMdd_hhmmss>.png` (local time, like the GUI's file names) to the current folder; a path given with `-o` is used as is and overwrites an existing file. It uses all hardware threads, and SSE unless `--scalar` is given (`--scalar` is the GUI's plain Render button). Exit codes: 1 usage error, 2 scene or mesh error, 3 the image can't be written.
+
+## MCP server
+
+[mcp_server/server.py](mcp_server/server.py) is the MCP server, written with the official Python MCP SDK (`mcp==2.2.0` in [mcp_server/requirements.txt](mcp_server/requirements.txt), installed in `mcp_server/.venv`). It loads `raytracer_mcp` with ctypes; [README.md](README.md#mcp-server) has the setup and the tools, and [.mcp.json](.mcp.json) registers it with Claude Code. Rules:
+
+- SDK 2.x differs from the 1.x examples online: `from mcp.server import MCPServer` (there's no `FastMCP`). Plain `def` tools run on worker threads, and only a `ToolError`'s message reaches the model; any other exception shows it just `Error executing tool <name>`.
+- The C API isn't thread-safe and tool calls can overlap, so every tool holds `raytracer.lock` while it calls the library.
+- A new C function must also go in `C_API` in `server.py`, with its exact argument and result types: a wrong ctypes signature crashes the server instead of raising an error. C API functions catch every C++ exception and return 1/0 (or text/`nullptr`), with the message in `rt_error()`.
+- The stdio transport sends the protocol over stdout, so nothing in the core or the C API may write to stdout. stderr is fine.
+- On Windows the server loads a temporary copy of the DLL, so builds can replace it. Restart the server (in Claude Code: `/mcp`) to use a new build.
+- The MCP camera gets an up vector perpendicular to the view (`placeCamera` in `rt_mcp_api.cpp`, via `RTCamera::setUp`), so any view is undistorted. Scene files keep the old fixed up of (0, 1, 0), which keeps their renders unchanged.
+- To test without an MCP client, drive the server with the SDK's own client, in a script run by the venv's Python: `async with Client(StdioServerParameters(command="mcp_server/.venv/Scripts/python.exe", args=["mcp_server/server.py"])) as client:`, then `await client.call_tool(name, arguments)`.
 
 ## Architecture
 

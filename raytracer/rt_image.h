@@ -29,6 +29,9 @@ public:
 
     bool savePNG( const std::string &fileName ) const;
 
+    // The bytes of the PNG file that savePNG() writes, without writing a file; empty if encoding fails
+    std::vector<unsigned char> toPNG() const;
+
 private:
     int Width;
     int Height;

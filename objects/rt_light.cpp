@@ -39,6 +39,16 @@ void RTLight::setName( const std::string &name )
     Name = name;
 }
 
+void RTLight::setColor( RTVector color )
+{
+    Color = color;
+}
+
+void RTLight::setIntensity( float intensity )
+{
+    Intensity = intensity;
+}
+
 RTVector RTLight::getPosition()
 {
     return  Position;
