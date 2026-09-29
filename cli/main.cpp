@@ -1,5 +1,6 @@
 #include <cerrno>
 #include <cstdlib>
+#include <ctime>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -39,7 +40,8 @@ const char *Usage =
     "Renders a scene file (as saved by the raytracer GUI) to a PNG image.\n"
     "\n"
     "Options:\n"
-    "  -o, --output <file.png>  output image (default: <scene name>.png in the current folder)\n"
+    "  -o, --output <file.png>  output image (default: <scene name>_<yyyyMMdd_hhmmss>.png\n"
+    "                           in the current folder)\n"
     "  --width <pixels>         image width (default: 800)\n"
     "  --height <pixels>        image height (default: 600)\n"
     "  --threads <count>        render threads (default: all hardware threads)\n"
@@ -86,6 +88,21 @@ std::string baseName( const std::string &path )
     std::string name = slash == std::string::npos ? path : path.substr( slash + 1 );
     size_t dot = name.find_last_of( '.' );
     return ( dot == std::string::npos || dot == 0 ) ? name : name.substr( 0, dot );
+}
+
+// Local time as yyyyMMdd_hhmmss, the format of the GUI's file names
+std::string timestamp()
+{
+    std::time_t now = std::time( nullptr );
+    std::tm local;
+#ifdef _WIN32
+    localtime_s( &local, &now );
+#else
+    localtime_r( &now, &local );
+#endif
+    char text[16];
+    std::strftime( text, sizeof( text ), "%Y%m%d_%H%M%S", &local );
+    return text;
 }
 
 bool parsePositive( const std::string &text, int &value )
@@ -211,7 +228,7 @@ int main( int argc, char *argv[] )
 
     if ( outputPath.empty() )
     {
-        outputPath = baseName( scenePath ) + ".png";
+        outputPath = baseName( scenePath ) + "_" + timestamp() + ".png";
     }
     if ( !image.savePNG( outputPath ) )
     {

@@ -30,7 +30,7 @@ cmake --build build/release
 raytracer-cli scenes/example.sc -o example.png [--width 800] [--height 600] [--threads N] [--depth 3] [--scalar] [--resources <dir>]
 ```
 
-The defaults match the GUI: 800×600 and trace depth 3. It uses all hardware threads, and SSE unless `--scalar` is given (`--scalar` is the GUI's plain Render button). Exit codes: 1 usage error, 2 scene or mesh error, 3 the image can't be written.
+The defaults match the GUI: 800×600 and trace depth 3. Without `-o`, it writes `<scene name>_<yyyyMMdd_hhmmss>.png` (local time, like the GUI's file names) to the current folder; a path given with `-o` is used as is and overwrites an existing file. It uses all hardware threads, and SSE unless `--scalar` is given (`--scalar` is the GUI's plain Render button). Exit codes: 1 usage error, 2 scene or mesh error, 3 the image can't be written.
 
 ## Architecture
 
